@@ -1,0 +1,6 @@
+export { default as DashboardPage } from './pages/DashboardPage'
+export { default as SuperAdminDashboardPage } from './pages/SuperAdminDashboardPage'
+export { default as SalesExecutiveDashboardPage } from './pages/SalesExecutiveDashboardPage'
+export { default as ClinicAdminDashboardPage } from './pages/ClinicAdminDashboardPage'
+export { default as PractitionerDashboardPage } from './pages/PractitionerDashboardPage'
+export { default as PatientPortalDashboardPage } from './pages/PatientPortalDashboardPage'

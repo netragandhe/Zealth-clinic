@@ -1,0 +1,913 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --color-primary-navy: #0E1B33;
+  --color-brand-teal: #30D2BE;
+  --color-brand-purple: #8C4BFF;
+  --color-slate-150: #EEF1F5;
+  --color-slate-850: #1E293B;
+
+  /* Global Slate Color Palette Upgrades for Typography Contrast & Visibility */
+  --color-slate-300: #CBD5E1;
+  --color-slate-400: #94A3B8;
+  --color-slate-500: #64748B;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1E293B;
+}
+
+/* Global reset and font */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body, input, button, select, textarea, .ant-input, .ant-select, .ant-btn, .ant-picker, .ant-table, .ant-tabs, .ant-modal, .ant-drawer, .ant-select-selection-item, .ant-select-selection-placeholder, * {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+html, body {
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #F8FAFC;
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+::-webkit-scrollbar-thumb {
+  background: #E2E8F0;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #CBD5E1;
+}
+
+/* Slide-in animation for panels */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.2s ease-out;
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out;
+}
+
+/* Ant Design overrides */
+.ant-btn-primary {
+  background-color: #8C4BFF !important;
+  border-color: #8C4BFF !important;
+}
+.ant-btn-primary:hover {
+  background-color: #7B3DE8 !important;
+  border-color: #7B3DE8 !important;
+}
+
+/* Remove default antd tab underlines */
+.ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #8C4BFF !important;
+}
+.ant-tabs-ink-bar {
+  background: #8C4BFF !important;
+}
+
+/* Card Customization */
+.ant-card {
+  border-radius: 16px !important;
+  border-color: #E2E8F0 !important;
+  background-color: #FFFFFF !important;
+}
+
+.dark .ant-card {
+  background-color: #0F172A !important;
+  border-color: #1E293B !important;
+}
+
+.ant-card-head {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+.ant-card-body {
+  padding-top: 12px !important;
+}
+
+/* Custom Tabs Styling to match Reference image */
+.client-profile-container .ant-tabs-card {
+  background-color: #F1F5F9 !important;
+  border-radius: 12px;
+  padding: 4px !important;
+  border: none !important;
+}
+
+.dark .client-profile-container .ant-tabs-card {
+  background-color: #020617 !important;
+}
+
+.client-profile-container .ant-tabs-nav {
+  margin-bottom: 0 !important;
+  border-bottom: none !important;
+}
+
+.client-profile-container .ant-tabs-nav-wrap {
+  border-bottom: none !important;
+}
+
+.client-profile-container .ant-tabs-nav-list {
+  gap: 4px;
+  border-bottom: none !important;
+}
+
+.client-profile-container .ant-tabs-tab {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #64748B !important;
+  font-weight: 600;
+  transition: all 0.2s;
+  padding: 8px 16px !important;
+  margin: 0 !important;
+}
+
+.dark .client-profile-container .ant-tabs-tab {
+  color: #94A3B8 !important;
+}
+
+.client-profile-container .ant-tabs-tab-active {
+  background-color: #FFFFFF !important;
+  color: #8C4BFF !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+}
+
+.dark .client-profile-container .ant-tabs-tab-active {
+  background-color: #1E293B !important;
+  color: #FFFFFF !important;
+}
+
+.client-profile-container .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #8C4BFF !important;
+}
+
+.dark .client-profile-container .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #FFFFFF !important;
+}
+
+.client-profile-container .ant-tabs-tab:hover {
+  color: #8C4BFF !important;
+}
+
+/* Inputs, Selects, Picker Customization for smooth grey fills in cards, modals, and drawers */
+.ant-input,
+.ant-select-selector,
+.ant-picker,
+.ant-input-affix-wrapper {
+  background-color: #EEF2F6 !important;
+  border: none !important;
+  border-radius: 10px !important;
+  height: 40px !important;
+  box-shadow: none !important;
+}
+
+.dark .ant-input,
+.dark .ant-select-selector,
+.dark .ant-picker,
+.dark .ant-input-affix-wrapper {
+  background-color: #1E293B !important;
+}
+
+.ant-input-textarea .ant-input {
+  height: auto !important;
+  min-height: 80px !important;
+}
+
+/* Fix nested inputs inside affix wrappers to not overflow or duplicate styles */
+.ant-input-affix-wrapper .ant-input {
+  background-color: transparent !important;
+  border: none !important;
+  height: auto !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Align text inside select */
+.ant-select-selector {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* For placeholder text and input text inside select and datepicker */
+.ant-select-selection-item,
+.ant-select-selection-placeholder,
+.ant-picker-input > input,
+.ant-input::placeholder,
+.ant-input {
+  font-weight: 500;
+  font-size: 13px;
+  color: #334155 !important;
+}
+
+.dark .ant-select-selection-item,
+.dark .ant-select-selection-placeholder,
+.dark .ant-picker-input > input,
+.dark .ant-input::placeholder,
+.dark .ant-input {
+  color: #E2E8F0 !important;
+}
+
+/* Target focused states */
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  background-color: #E2E8F0 !important;
+}
+
+.dark .ant-input:focus,
+.dark .ant-input-focused,
+.dark .ant-input-affix-wrapper-focused,
+.dark .ant-select-focused .ant-select-selector,
+.dark .ant-picker-focused {
+  background-color: #334155 !important;
+}
+
+/* Waitlist search bar styling */
+.waitlist-search-input {
+  background-color: #FFFFFF !important;
+  color: #334155 !important;
+  border: 1px solid #E2E8F0 !important;
+}
+.waitlist-search-input::placeholder {
+  color: #94A3B8 !important;
+}
+.dark .waitlist-search-input {
+  background-color: #1E293B !important;
+  color: #F1F5F9 !important;
+  border: 1px solid #334155 !important;
+}
+.dark .waitlist-search-input::placeholder {
+  color: #64748B !important;
+}
+
+/* Invoice search bar styling */
+.invoice-search-input {
+  background-color: #FFFFFF !important;
+  color: #334155 !important;
+  border: 1px solid #E2E8F0 !important;
+}
+.invoice-search-input::placeholder {
+  color: #94A3B8 !important;
+}
+.dark .invoice-search-input {
+  background-color: #1E293B !important;
+  color: #F1F5F9 !important;
+  border: 1px solid #334155 !important;
+}
+.dark .invoice-search-input::placeholder {
+  color: #64748B !important;
+}
+
+/* Waitlist Status Select Colors matching screenshot tags */
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px; /* full pill */
+  padding: 0 4px;
+  font-weight: 700;
+  font-size: 11px;
+  width: 110px;
+  height: 28px;
+  text-align: center;
+}
+.status-tag.status-waiting {
+  background-color: #F59E0B !important; /* Orange/Yellow */
+  color: #FFFFFF !important;
+}
+.status-tag.status-contacted {
+  background-color: #3B82F6 !important; /* Blue */
+  color: #FFFFFF !important;
+}
+.status-tag.status-booked {
+  background-color: #10B981 !important; /* Green */
+  color: #FFFFFF !important;
+}
+
+/* Force the select inside to inherit color and background */
+.status-tag .ant-select {
+  color: inherit !important;
+  background-color: transparent !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.status-tag .ant-select-selector {
+  background-color: transparent !important;
+  color: inherit !important;
+  border: none !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 8px !important;
+  box-shadow: none !important;
+}
+.status-tag .ant-select-selection-item {
+  color: inherit !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  text-align: center !important;
+}
+.status-tag .ant-select-arrow {
+  color: inherit !important;
+  right: 8px !important;
+}
+
+/* Table pagination clean overrides to match white/transparent theme */
+.ant-table-wrapper .ant-table-pagination.ant-pagination {
+  background-color: #FFFFFF !important;
+  background: #FFFFFF !important;
+  border-top: 1px solid #EEF1F5 !important;
+  margin: 0 !important;
+  padding: 16px 24px !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination {
+  background-color: #0F172A !important;
+  background: #0F172A !important;
+  border-top: 1px solid #1E293B !important;
+}
+
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-total-text {
+  color: #64748B !important;
+  font-weight: 500 !important;
+  margin-right: auto !important;
+}
+
+/* Base pagination items styling (numbers, next, prev) */
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-item,
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-prev,
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-next {
+  border-radius: 8px !important;
+  border: none !important;
+  background-color: transparent !important;
+  transition: all 0.2s !important;
+  margin: 0 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 32px !important;
+  line-height: 32px !important;
+}
+
+/* Next / Prev button overrides to have zero background and borders, just text */
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-prev,
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-next {
+  width: auto !important;
+  padding: 0 8px !important;
+  min-width: unset !important;
+}
+
+/* Inactive items text color */
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-item a,
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-prev,
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-next {
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-item a,
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-prev,
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-next {
+  color: #94A3B8 !important;
+}
+
+/* Active item styling: filled circle with primary navy background */
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-item-active {
+  background-color: #0E1B33 !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-item-active a {
+  color: #FFFFFF !important;
+}
+
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-item-active {
+  background-color: #FFFFFF !important;
+}
+
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-item-active a {
+  color: #0F172A !important;
+}
+
+/* Hover effects */
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-item:not(.ant-pagination-item-active):hover a,
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-prev:not(.ant-pagination-disabled):hover,
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-next:not(.ant-pagination-disabled):hover {
+  color: #8C4BFF !important;
+  background-color: #F3EEFF !important;
+  border-radius: 8px !important;
+}
+
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-item:not(.ant-pagination-item-active):hover a,
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-prev:not(.ant-pagination-disabled):hover,
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-next:not(.ant-pagination-disabled):hover {
+  color: #8C4BFF !important;
+  background-color: #241A42 !important;
+  border-radius: 8px !important;
+}
+
+/* Disabled states */
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-disabled,
+.ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-disabled * {
+  color: #CBD5E1 !important;
+  cursor: not-allowed !important;
+  background-color: transparent !important;
+}
+
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-disabled,
+.dark .ant-table-wrapper .ant-table-pagination.ant-pagination .ant-pagination-disabled * {
+  color: #475569 !important;
+}
+
+/* General table overrides to clean up custom footers/pagination backgrounds */
+.ant-table-pagination-row, 
+.ant-table-pagination-left, 
+.ant-table-pagination-center, 
+.ant-table-pagination-right {
+  background-color: transparent !important;
+  background: transparent !important;
+  color: inherit !important;
+}
+
+/* ── Global Typography & Contrast Enhancements (Healthcare SaaS Specs) ── */
+
+/* Page Titles */
+h1, h2, .page-title, .text-2xl, .text-3xl {
+  font-weight: 700 !important;
+  color: #1E293B !important;
+}
+.dark h1, .dark h2, .dark .page-title, .dark .text-2xl, .dark .text-3xl {
+  color: #FFFFFF !important;
+}
+
+/* Section Titles / Card Headers */
+h3, h4, .section-title, .text-lg, .text-base, .ant-card-head-title, .ant-card-head-title * {
+  font-weight: 600 !important;
+  color: #334155 !important;
+}
+.dark h3, .dark h4, .dark .section-title, .dark .text-lg, .dark .text-base, .dark .ant-card-head-title, .dark .ant-card-head-title * {
+  color: #F1F5F9 !important;
+}
+
+/* Table Headers (Ant Design Tables & Custom Grid Tables) */
+.ant-table-thead th,
+.ant-table-thead th *,
+.table-header,
+.table-header *,
+.bg-white > div.grid.text-xs.font-semibold.text-slate-400,
+.bg-white > div.grid.text-xs.font-semibold.text-slate-400 * {
+  font-weight: 600 !important;
+  color: #475569 !important;
+}
+.dark .ant-table-thead th,
+.dark .ant-table-thead th *,
+.dark .table-header,
+.dark .table-header *,
+.dark .bg-white > div.grid.text-xs.font-semibold.text-slate-400,
+.dark .bg-white > div.grid.text-xs.font-semibold.text-slate-400 * {
+  color: #94A3B8 !important;
+}
+
+/* Table Values / Body Cells (Excluding Colored Tags & Badges) */
+.ant-table-tbody td,
+.table-row,
+.table-cell {
+  font-weight: 500 !important;
+  color: #1F2937 !important;
+}
+.dark .ant-table-tbody td,
+.dark .table-row,
+.dark .table-cell {
+  color: #E2E8F0 !important;
+}
+
+/* Force standard text spans & table links to table value color while keeping tag borders intact */
+.ant-table-tbody td span:not([class*="text-"]):not([class*="status"]):not(.ant-tag),
+.ant-table-tbody td a:not([class*="text-"]):not([class*="status"]):not(.ant-tag) {
+  color: #1F2937 !important;
+  font-weight: 500 !important;
+}
+.dark .ant-table-tbody td span:not([class*="text-"]):not([class*="status"]):not(.ant-tag),
+.dark .ant-table-tbody td a:not([class*="text-"]):not([class*="status"]):not(.ant-tag) {
+  color: #E2E8F0 !important;
+}
+
+/* Custom grid table rows in Patients/Contacts pages */
+.bg-white .grid span.text-sm.text-slate-800,
+.bg-white .grid span.text-sm.text-slate-500 {
+  font-weight: 500 !important;
+  color: #1F2937 !important;
+}
+.dark .bg-white .grid span.text-sm.text-slate-800,
+.dark .bg-white .grid span.text-sm.text-slate-500 {
+  color: #E2E8F0 !important;
+}
+
+/* Email Addresses - Clearly Visible */
+a[href^="mailto:"],
+.email-text,
+.bg-white .grid span.text-sm.text-slate-400.truncate,
+.ant-table-tbody td .text-slate-400.truncate,
+.ant-table-tbody td span.truncate {
+  font-weight: 500 !important;
+  color: #334155 !important;
+}
+.dark a[href^="mailto:"],
+.dark .email-text,
+.dark .bg-white .grid span.text-sm.text-slate-400.truncate,
+.dark .ant-table-tbody td .text-slate-400.truncate,
+.dark .ant-table-tbody td span.truncate {
+  color: #94A3B8 !important;
+}
+
+/* Descriptions / Subtitles / Card Extras */
+.text-slate-400,
+.subtitle,
+.description,
+p.text-xs,
+.ant-form-item-extra,
+.ant-card-head .text-xs.font-bold {
+  color: #64748B !important;
+}
+.dark .text-slate-400,
+.dark .subtitle,
+.dark .description,
+.dark p.text-xs,
+.dark .ant-form-item-extra,
+.dark .ant-card-head .text-xs.font-bold {
+  color: #94A3B8 !important;
+}
+
+/* Form Section Labels */
+label, 
+.ant-form-item-label > label, 
+.ant-form-item-label label,
+.block.text-xs.font-semibold.text-slate-500 {
+  font-weight: 600 !important;
+  color: #334155 !important;
+}
+.dark label, 
+.dark .ant-form-item-label > label, 
+.dark .ant-form-item-label label,
+.dark .block.text-xs.font-semibold.text-slate-500 {
+  color: #E2E8F0 !important;
+}
+
+/* Input Fields & Selection Items Values */
+.ant-input,
+.ant-select-selection-item,
+.ant-picker-input > input,
+input,
+select,
+textarea {
+  color: #1F2937 !important;
+  font-weight: 500 !important;
+}
+.dark .ant-input,
+.dark .ant-select-selection-item,
+.dark .ant-picker-input > input,
+.dark input,
+.dark select,
+.dark textarea {
+  color: #E2E8F0 !important;
+}
+
+/* Placeholders (Visible but muted) */
+::placeholder,
+.ant-input::placeholder,
+.ant-select-selection-placeholder {
+  color: #94A3B8 !important;
+  opacity: 1 !important;
+}
+.dark ::placeholder,
+.dark .ant-input::placeholder,
+.dark .ant-select-selection-placeholder {
+  color: #64748B !important;
+}
+
+/* Dropdown Menu Option Elements */
+.ant-select-dropdown .ant-select-item-option-content {
+  color: #1F2937 !important;
+  font-weight: 500 !important;
+}
+.dark .ant-select-dropdown .ant-select-item-option-content {
+  color: #E2E8F0 !important;
+}
+
+/* Primary buttons readable contrast weighting */
+.ant-btn-primary,
+.btn-primary,
+button[type="submit"],
+button.bg-brand-purple,
+button.bg-\[\#8C4BFF\] {
+  font-weight: 600 !important;
+}
+
+/* ── Reports Page Specific Overrides ── */
+.reports-page-container .ant-input,
+.reports-page-container .ant-select-selector,
+.reports-page-container textarea {
+  background-color: #EEF2F6 !important;
+  border: none !important;
+  border-radius: 10px !important;
+  height: 42px !important;
+  box-shadow: none !important;
+  color: #1F2937 !important;
+  font-weight: 500 !important;
+}
+
+.dark .reports-page-container .ant-input,
+.dark .reports-page-container .ant-select-selector,
+.dark .reports-page-container textarea {
+  background-color: #1E293B !important;
+  color: #E2E8F0 !important;
+}
+
+.reports-page-container .ant-select {
+  height: 42px !important;
+}
+
+.reports-page-container .ant-select-selector {
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 16px !important;
+}
+
+.reports-page-container .ant-select-selection-item,
+.reports-page-container .ant-select-selection-placeholder {
+  line-height: 42px !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  color: #1F2937 !important;
+  margin-inline-start: 0 !important;
+  padding: 0 !important;
+}
+
+.dark .reports-page-container .ant-select-selection-item,
+.dark .reports-page-container .ant-select-selection-placeholder {
+  color: #E2E8F0 !important;
+}
+
+/* Adjust textarea default height/padding */
+.reports-page-container textarea {
+  height: auto !important;
+  min-height: 120px !important;
+  padding: 12px 16px !important;
+}
+
+/* Force Reports Page elements to remain in Light Mode aesthetics even when .dark class is active */
+.dark .reports-page-container .bg-white,
+.dark .reports-page-container .reports-card {
+  background-color: #FFFFFF !important;
+  border-color: #EEF1F5 !important;
+}
+
+.dark .reports-page-container h1,
+.dark .reports-page-container h2,
+.dark .reports-page-container h3,
+.dark .reports-page-container h4,
+.dark .reports-page-container label,
+.dark .reports-page-container span,
+.dark .reports-page-container button,
+.dark .reports-page-container a,
+.dark .reports-page-container p {
+  color: #1F2937 !important;
+}
+
+.dark .reports-page-container h1 {
+  color: #0E1B33 !important;
+}
+
+.dark .reports-page-container .text-slate-400,
+.dark .reports-page-container .text-slate-500 {
+  color: #64748B !important;
+}
+
+.dark .reports-page-container .text-slate-600 {
+  color: #475569 !important;
+}
+
+.dark .reports-page-container button {
+  color: #475569 !important;
+}
+
+.dark .reports-page-container .active-tab-btn {
+  color: #8C4BFF !important;
+}
+
+.dark .reports-page-container .inactive-tab-btn {
+  color: #475569 !important;
+}
+
+/* Force inputs and textarea to remain light gray in dark mode */
+.dark .reports-page-container .ant-input,
+.dark .reports-page-container .ant-select-selector,
+.dark .reports-page-container textarea {
+  background-color: #EEF2F6 !important;
+  color: #1F2937 !important;
+}
+
+.dark .reports-page-container .ant-select-selection-item,
+.dark .reports-page-container .ant-select-selection-placeholder {
+  color: #1F2937 !important;
+}
+
+/* Force send button to remain dark navy with white text in dark mode */
+.dark .reports-page-container .send-btn {
+  background-color: #0E1B33 !important;
+}
+
+.dark .reports-page-container .send-btn,
+.dark .reports-page-container .send-btn * {
+  color: #FFFFFF !important;
+}
+
+
+
+/* ── Responsive Responsiveness Overrides ── */
+
+/* Responsive Table container overrides */
+.ant-table-wrapper {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  scrollbar-width: thin;
+}
+.ant-table-content {
+  overflow-x: auto !important;
+}
+
+/* Ensure images and media elements fit screen */
+img, video, iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* ── Typography Contrast Adjustments for Light/Dark Themes ── */
+
+/* Light Mode overrides to make text darker/readable on light backgrounds */
+html:not(.dark) .text-slate-300 {
+  color: #64748B !important; /* slate-500 */
+}
+html:not(.dark) .text-slate-400 {
+  color: #475569 !important; /* slate-600 */
+}
+html:not(.dark) .text-slate-500 {
+  color: #334155 !important; /* slate-700 */
+}
+html:not(.dark) .text-slate-600 {
+  color: #1E293B !important; /* slate-800 */
+}
+html:not(.dark) .text-slate-700 {
+  color: #0F172A !important; /* slate-900 */
+}
+
+/* Dark Mode overrides to make text lighter/visible on dark backgrounds */
+.dark .text-slate-300 {
+  color: #CBD5E1 !important; /* slate-300 */
+}
+.dark .text-slate-400 {
+  color: #94A3B8 !important; /* slate-400 */
+}
+.dark .text-slate-555,
+.dark .text-slate-500 {
+  color: #CBD5E1 !important; /* slate-300 */
+}
+.dark .text-slate-600 {
+  color: #E2E8F0 !important; /* slate-200 */
+}
+.dark .text-slate-700 {
+  color: #F8FAFC !important; /* slate-50 */
+}
+.dark .text-slate-808,
+.dark .text-slate-850,
+.dark .text-slate-800 {
+  color: #FFFFFF !important;
+}
+
+/* Additional specific contrast adjustments for reports card subtexts */
+.dark .reports-card span,
+.dark .reports-page-container span,
+.dark .documents-page-container span,
+.dark .ant-card span,
+.dark .ant-table-wrapper span {
+  color: inherit;
+}
+
+
+
+
+
+
+/* Dark Mode Pagination Fixes */
+.dark .ant-pagination-item {
+  background-color: transparent !important;
+  border-color: #334155 !important;
+}
+.dark .ant-pagination-item a {
+  color: #94A3B8 !important;
+}
+.dark .ant-pagination-item-active {
+  background-color: #1E293B !important;
+  border-color: #8C4BFF !important;
+}
+.dark .ant-pagination-item-active a {
+  color: #8C4BFF !important;
+}
+.dark .ant-pagination-prev .ant-pagination-item-link,
+.dark .ant-pagination-next .ant-pagination-item-link {
+  background-color: transparent !important;
+  color: #94A3B8 !important;
+  border-color: #334155 !important;
+}
+.dark .ant-pagination-disabled .ant-pagination-item-link {
+  color: #475569 !important;
+  border-color: #1E293B !important;
+}
+.dark .ant-pagination-jump-prev .ant-pagination-item-container .ant-pagination-item-ellipsis,
+.dark .ant-pagination-jump-next .ant-pagination-item-container .ant-pagination-item-ellipsis {
+  color: #475569 !important;
+}
+
+/* Light Mode Global Enhancements for Better Visibility */
+:root:not(.dark) .ant-table-cell {
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
+:root:not(.dark) .ant-table-wrapper {
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+:root:not(.dark) input.ant-input:not(.ant-input-affix-wrapper *),
+:root:not(.dark) .ant-select-selector,
+:root:not(.dark) .ant-picker,
+:root:not(.dark) .ant-btn-default {
+  border: 1px solid #CBD5E1 !important;
+}
+
+:root:not(.dark) .border-slate-100 {
+  border-color: #E2E8F0 !important;
+}
+
+:root:not(.dark) .bg-white {
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+}
