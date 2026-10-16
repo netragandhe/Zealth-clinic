@@ -6,6 +6,7 @@ import dayjs from 'dayjs'
 import api from '../../../../api/axios'
 import { useClinicStore } from '../../../../store/clinicStore'
 import { isPractitionerAvailable } from '../../../../utils/availabilityHelper'
+import { categorizeAppointments } from '../../../../utils/appointmentUtils'
 
 const { Option } = Select
 
@@ -42,21 +43,18 @@ export default function PatientAppointments() {
     try {
       const res = await api.get('/api/patient/appointments')
       if (res.data?.success && Array.isArray(res.data.data)) {
-        const todayStr = new Date().toISOString().split('T')[0]
         const formatted = res.data.data.map(app => {
           const rawStatus = app.status || 'Confirmed'
-          const appDate = app.date || new Date(app.createdAt).toISOString().split('T')[0]
-          const isUpcomingStatus = ['scheduled', 'confirmed', 'upcoming', 'pending'].includes(rawStatus.toLowerCase())
-          const isPast = ['completed', 'cancelled', 'missed'].includes(rawStatus.toLowerCase()) || (appDate < todayStr && !isUpcomingStatus)
+          const appDate = app.date || (app.createdAt ? new Date(app.createdAt).toISOString().split('T')[0] : '')
           return {
             id: app.id,
             date: appDate,
-            time: app.startTime || '10:00 AM',
+            time: app.startTime || app.time || '10:00 AM',
             practitioner: app.practitionerName || 'Dr. Practitioner',
             clinic: app.branchName || 'Allied Health Clinic',
             type: app.serviceName || 'Consultation',
             funding: 'Private',
-            status: isPast ? rawStatus : 'Upcoming',
+            status: rawStatus,
             rawStatus: rawStatus
           }
         })
@@ -281,18 +279,11 @@ export default function PatientAppointments() {
     }
   }
 
-  // Filtered List based on Search & Status
-  const filteredApps = appointmentsList.filter(a => {
-    const matchesSearch = (a.practitioner || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (a.type || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (a.clinic || '').toLowerCase().includes(searchTerm.toLowerCase())
-
-    if (statusFilter === 'ALL') return matchesSearch
-    return matchesSearch && a.status.toLowerCase() === statusFilter.toLowerCase()
+  // Categorized & Filtered Lists based on Search, Status, and Scheduled DateTime
+  const { upcomingApps, pastApps } = categorizeAppointments(appointmentsList, {
+    searchTerm,
+    statusFilter,
   })
-
-  const upcomingApps = filteredApps.filter(a => a.status === 'Upcoming')
-  const pastApps = filteredApps.filter(a => a.status !== 'Upcoming')
 
   return (
     <div className="space-y-6">

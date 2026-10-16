@@ -21,6 +21,7 @@ import {
 import api from '../../../../api/axios'
 import { useClinicStore } from '../../../../store/clinicStore'
 import { calculateClinicalProgress, parseClinicalScore, calculateGoalAchievement } from '../../../patients/utils/clinicalOutcomeEngine'
+import { parseComplianceString } from '../../../../utils/progressUtils'
 
 const { Option } = Select
 
