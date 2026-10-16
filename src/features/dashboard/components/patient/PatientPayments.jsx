@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { Card, Table, Tag, Button, Modal, Radio, Space, Input, Spin, Empty } from 'antd'
 import { CreditCardOutlined, DownloadOutlined, SafetyOutlined, DollarOutlined, SearchOutlined } from '@ant-design/icons'
 import { toast } from 'react-hot-toast'
-import jsPDF from 'jspdf'
 import api from '../../../../api/axios'
+import { getInvoiceOutstandingBalance, downloadReceiptPdf } from '../../../../utils/invoiceUtils'
 
 export default function PatientPayments() {
   const [loading, setLoading] = useState(false)
@@ -44,20 +44,21 @@ export default function PatientPayments() {
     e.preventDefault()
     if (!selectedInvoice) return
 
+    const payAmount = getInvoiceOutstandingBalance(selectedInvoice)
     try {
       const res = await api.post(`/api/patient/invoices/${selectedInvoice.id}/pay`, {
         paymentMethod
       })
       if (res.data?.success) {
-        toast.success(`Payment of $${selectedInvoice.amount.toFixed(2)} completed successfully!`)
+        toast.success(`Payment of $${payAmount.toFixed(2)} completed successfully!`)
         fetchInvoices()
       } else {
-        setInvoicesList(prev => prev.map(inv => inv.id === selectedInvoice.id ? { ...inv, status: 'Paid' } : inv))
-        toast.success(`Payment of $${selectedInvoice.amount.toFixed(2)} completed successfully!`)
+        setInvoicesList(prev => prev.map(inv => inv.id === selectedInvoice.id ? { ...inv, status: 'Paid', due: 0, outstandingDue: 0, balanceDue: 0 } : inv))
+        toast.success(`Payment of $${payAmount.toFixed(2)} completed successfully!`)
       }
     } catch (err) {
-      setInvoicesList(prev => prev.map(inv => inv.id === selectedInvoice.id ? { ...inv, status: 'Paid' } : inv))
-      toast.success(`Payment of $${selectedInvoice.amount.toFixed(2)} completed successfully!`)
+      setInvoicesList(prev => prev.map(inv => inv.id === selectedInvoice.id ? { ...inv, status: 'Paid', due: 0, outstandingDue: 0, balanceDue: 0 } : inv))
+      toast.success(`Payment of $${payAmount.toFixed(2)} completed successfully!`)
     } finally {
       setPayModalOpen(false)
     }
@@ -65,76 +66,15 @@ export default function PatientPayments() {
 
   const generatePDFReceipt = (record) => {
     try {
-      const doc = new jsPDF()
-      
-      // Primary Header & Title
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(20)
-      doc.setTextColor(14, 27, 51)
-      doc.text('TAX RECEIPT', 20, 25)
-
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(100, 116, 139)
-      doc.text(`Receipt Reference: ${record.id || 'Not Configured'}`, 20, 32)
-      doc.text(`Issued Date: ${record.due || 'Not Configured'}`, 20, 37)
-
-      // Divider
-      doc.setDrawColor(226, 232, 240)
-      doc.line(20, 43, 190, 43)
-
-      // Invoice & Service Details Box
-      doc.setFontSize(11)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(14, 27, 51)
-      doc.text('Service & Billing Summary', 20, 52)
-
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(51, 65, 85)
-
-      doc.text(`Clinic Service: ${record.service || 'Not Configured'}`, 20, 62)
-      doc.text(`Practitioner: ${record.practitioner || 'Not Configured'}`, 20, 70)
-      doc.text(`Payment Status: ${record.status || 'Paid'}`, 20, 78)
-
-      // Amount Table Header
-      doc.setFillColor(248, 250, 252)
-      doc.rect(20, 88, 170, 10, 'F')
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9)
-      doc.setTextColor(71, 85, 105)
-      doc.text('DESCRIPTION', 25, 94.5)
-      doc.text('TOTAL AMOUNT', 150, 94.5)
-
-      // Amount Table Row
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(10)
-      doc.setTextColor(15, 23, 42)
-      doc.text(record.service || 'Clinic Service', 25, 106)
-      doc.text(`$${Number(record.amount || 0).toFixed(2)}`, 150, 106)
-
-      // Divider
-      doc.line(20, 112, 190, 112)
-
-      // Total Paid Box
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(12)
-      doc.setTextColor(140, 75, 255)
-      doc.text('Total Paid:', 115, 122)
-      doc.text(`$${Number(record.amount || 0).toFixed(2)}`, 150, 122)
-
-      // Footer Placeholders for unconfigured metadata
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.setTextColor(148, 163, 184)
-      doc.text('Clinic Contact / ABN: Not Configured', 20, 145)
-      doc.text('Compliance Statement: Not Configured', 20, 150)
-
-      doc.save(`Receipt_${record.id || 'INV'}.pdf`)
+      if (!record || !record.id) {
+        toast.error('Invalid invoice record: missing invoice details')
+        return
+      }
+      downloadReceiptPdf(record)
       toast.success(`Receipt for ${record.id} downloaded successfully!`)
     } catch (err) {
       console.error('PDF Generation Error:', err)
-      toast.error('Failed to generate PDF receipt')
+      toast.error(err?.message || 'Failed to generate PDF receipt')
     }
   }
 
@@ -193,15 +133,31 @@ export default function PatientPayments() {
                 render: (d) => <span className="text-slate-500 font-semibold text-xs">{d}</span> 
               },
               { 
-                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Outstanding Total</span>, 
+                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Due Date</span>, 
+                dataIndex: 'due', 
+                render: (d) => <span className="text-slate-500 font-semibold text-xs">{d}</span> 
+              },
+              { 
+                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Original Total</span>, 
                 dataIndex: 'amount', 
-                render: (a) => <span className="font-extrabold text-[#8C4BFF] text-xs">${Number(a || 0).toFixed(2)}</span> 
+                render: (a) => <span className="font-semibold text-slate-600 dark:text-slate-400 text-xs">${Number(a || 0).toFixed(2)}</span> 
+              },
+              { 
+                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Outstanding Total</span>, 
+                render: (_, rec) => {
+                  const bal = getInvoiceOutstandingBalance(rec)
+                  return (
+                    <span className={`font-extrabold text-xs ${bal > 0 ? 'text-[#8C4BFF]' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      ${bal.toFixed(2)}
+                    </span>
+                  )
+                } 
               },
               { 
                 title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Status</span>, 
                 dataIndex: 'status', 
                 render: (s) => (
-                  <Tag color={s === 'Paid' ? 'success' : s === 'Unpaid' ? 'warning' : 'error'} className="rounded-full border-none font-bold text-[9px] px-2.5 py-0.5">
+                  <Tag color={s === 'Paid' ? 'success' : s === 'Unpaid' ? 'warning' : 'processing'} className="rounded-full border-none font-bold text-[9px] px-2.5 py-0.5">
                     {s}
                   </Tag>
                 ) 
@@ -210,8 +166,9 @@ export default function PatientPayments() {
                 title: '',
                 key: 'action',
                 align: 'right',
-                render: (_, record) => (
-                  record.status !== 'Paid' ? (
+                render: (_, record) => {
+                  const bal = getInvoiceOutstandingBalance(record)
+                  return bal > 0 && record.status !== 'Paid' ? (
                     <Button
                       size="small"
                       type="primary"
@@ -232,7 +189,7 @@ export default function PatientPayments() {
                       Receipt
                     </Button>
                   )
-                )
+                }
               }
             ]}
           />
@@ -255,8 +212,9 @@ export default function PatientPayments() {
               <div>
                 <span className="text-slate-400 text-[10px] uppercase font-bold tracking-wider block">Service Invoice Balance</span>
                 <span className="text-slate-800 dark:text-slate-200 text-xs font-bold">{selectedInvoice.service}</span>
+                <span className="text-slate-400 text-[9px] block mt-0.5">Original Total: ${Number(selectedInvoice.amount || 0).toFixed(2)}</span>
               </div>
-              <span className="text-lg font-black text-[#8C4BFF]">${Number(selectedInvoice.amount || 0).toFixed(2)}</span>
+              <span className="text-lg font-black text-[#8C4BFF]">${getInvoiceOutstandingBalance(selectedInvoice).toFixed(2)}</span>
             </div>
 
             {/* Payment Method Selector */}
@@ -320,7 +278,7 @@ export default function PatientPayments() {
 
             <div className="flex justify-end gap-2 pt-2">
               <Button onClick={() => setPayModalOpen(false)} className="rounded-xl font-bold border-slate-200">Cancel</Button>
-              <Button type="primary" htmlType="submit" style={{ backgroundColor: '#0E1B33', borderColor: '#0E1B33' }} className="rounded-xl font-bold text-xs text-white">Pay ${Number(selectedInvoice.amount || 0).toFixed(2)}</Button>
+              <Button type="primary" htmlType="submit" style={{ backgroundColor: '#0E1B33', borderColor: '#0E1B33' }} className="rounded-xl font-bold text-xs text-white">Pay ${getInvoiceOutstandingBalance(selectedInvoice).toFixed(2)}</Button>
             </div>
           </form>
         </Modal>

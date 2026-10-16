@@ -3,6 +3,7 @@ import { Card, Progress, Timeline, Tag, Input, Select, Button, Modal, Form, Spin
 import { FieldTimeOutlined, SafetyCertificateOutlined, TrophyOutlined, SearchOutlined, FilterOutlined, PlusOutlined, DeleteOutlined, EditOutlined, CheckCircleOutlined, CheckOutlined, PlayCircleOutlined, MedicineBoxOutlined, SmileOutlined, AppstoreOutlined } from '@ant-design/icons'
 import { toast } from 'react-hot-toast'
 import api from '../../../../api/axios'
+import { computeExerciseCompliancePercent } from '../../../../utils/progressUtils'
 
 const { Option } = Select
 
@@ -372,9 +373,7 @@ export default function PatientTreatmentPlans() {
           
           const completedExercisesCount = exercisesList.filter(e => e.done).length
           const totalExercisesCount = exercisesList.length
-          const liveDailyPracticePercent = totalExercisesCount > 0 
-            ? Math.round((completedExercisesCount / totalExercisesCount) * 100) 
-            : 0
+          const liveDailyPracticePercent = computeExerciseCompliancePercent(exercisesList)
 
           const planGoals = (Array.isArray(plan.goals) && plan.goals.length > 0 ? plan.goals : [
             { id: 'g1', title: 'Target Clinical Goal & Functional Recovery', percent: 40, status: 'Active', milestone: 'Functional recovery milestone' },

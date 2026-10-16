@@ -4,6 +4,7 @@ import { Card, Table, Tag, Button, Upload, Space, Modal, Input, Select, Spin, Em
 import { PictureOutlined, CheckCircleOutlined, FormOutlined, FileTextOutlined, CloudUploadOutlined, SearchOutlined, FilterOutlined, DeleteOutlined } from '@ant-design/icons'
 import { toast } from 'react-hot-toast'
 import api from '../../../../api/axios'
+import { formatDocumentDate, deduplicateDocuments, downloadDocumentFile } from '../../../../utils/documentUtils'
 
 const { Dragger } = Upload
 const { Option } = Select
@@ -32,7 +33,9 @@ export default function PatientFormsDocuments() {
       })
       if (res.data?.success && res.data.data) {
         if (Array.isArray(res.data.data.forms)) setFormsList(res.data.data.forms)
-        if (Array.isArray(res.data.data.documents)) setDocumentsList(res.data.data.documents)
+        if (Array.isArray(res.data.data.documents)) {
+          setDocumentsList(deduplicateDocuments(res.data.data.documents))
+        }
       }
     } catch (err) {
       console.warn('Forms & documents API fetch fallback notice:', err?.message)
@@ -187,7 +190,7 @@ export default function PatientFormsDocuments() {
                   {
                     title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Received Date</span>,
                     dataIndex: 'date',
-                    render: (d) => <span className="text-slate-500 font-semibold text-xs">{d}</span>
+                    render: (d, rec) => <span className="text-slate-500 font-semibold text-xs">{formatDocumentDate(d, rec.createdAt)}</span>
                   },
                   {
                     title: '',
@@ -196,15 +199,13 @@ export default function PatientFormsDocuments() {
                       <div className="flex items-center justify-end gap-2">
                         <Button 
                           size="small" 
-                          onClick={() => {
-                            const element = document.createElement("a");
-                            const file = new Blob(["Simulated PDF Content for " + rec.name], {type: 'application/pdf'});
-                            element.href = URL.createObjectURL(file);
-                            element.download = rec.name;
-                            document.body.appendChild(element);
-                            element.click();
-                            document.body.removeChild(element);
-                            toast.success(`${rec.name} downloaded successfully!`)
+                          onClick={async () => {
+                            try {
+                              await downloadDocumentFile(rec, { api })
+                              toast.success(`${rec.name} downloaded successfully!`)
+                            } catch (err) {
+                              toast.error(err?.message || `Failed to download ${rec.name}`)
+                            }
                           }}
                           className="rounded-lg text-[9px] font-bold h-7 border-slate-200"
                         >
@@ -306,8 +307,8 @@ export default function PatientFormsDocuments() {
                     1. Pain Intensity & Severity
                   </label>
                   <Radio.Group
+                    value={formDataInput.q1}
                     onChange={(e) => setFormDataInput(prev => ({ ...prev, q1: e.target.value }))}
-                    defaultValue={1}
                     className="flex flex-col gap-1.5"
                   >
                     <Radio value={0} className="text-xs">0 - I have no pain at the moment</Radio>
@@ -322,8 +323,8 @@ export default function PatientFormsDocuments() {
                     2. Lifting & Physical Loading Ability
                   </label>
                   <Radio.Group
+                    value={formDataInput.q2}
                     onChange={(e) => setFormDataInput(prev => ({ ...prev, q2: e.target.value }))}
-                    defaultValue={1}
                     className="flex flex-col gap-1.5"
                   >
                     <Radio value={0} className="text-xs">0 - I can lift heavy weights without extra pain</Radio>
@@ -338,8 +339,8 @@ export default function PatientFormsDocuments() {
                     3. Walking & Mobility Tolerance
                   </label>
                   <Radio.Group
+                    value={formDataInput.q3}
                     onChange={(e) => setFormDataInput(prev => ({ ...prev, q3: e.target.value }))}
-                    defaultValue={0}
                     className="flex flex-col gap-1.5"
                   >
                     <Radio value={0} className="text-xs">0 - Pain does not prevent me walking any distance</Radio>
@@ -354,8 +355,8 @@ export default function PatientFormsDocuments() {
                     4. Sitting & Posture Comfort
                   </label>
                   <Radio.Group
+                    value={formDataInput.q4}
                     onChange={(e) => setFormDataInput(prev => ({ ...prev, q4: e.target.value }))}
-                    defaultValue={1}
                     className="flex flex-col gap-1.5"
                   >
                     <Radio value={0} className="text-xs">0 - I can sit in any chair as long as I like</Radio>
@@ -365,18 +366,36 @@ export default function PatientFormsDocuments() {
                   </Radio.Group>
                 </div>
 
-                {/* Live Computed Score Snapshot */}
-                <div className="p-3.5 bg-[#8C4BFF]/5 dark:bg-[#8C4BFF]/15 border border-[#8C4BFF]/20 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-[#8C4BFF] block">Computed Outcome Score</span>
-                    <span className="text-base font-black text-slate-800 dark:text-slate-100 block">
-                      {((((formDataInput.q1 || 1) + (formDataInput.q2 || 1) + (formDataInput.q3 || 0) + (formDataInput.q4 || 1)) / 12) * 100).toFixed(0)}% (Minimal / Moderate)
-                    </span>
-                  </div>
-                  <Tag color="success" className="font-bold text-[9px] px-2.5 py-0.5 rounded-full border-none">
-                    📈 Ready to Sync
-                  </Tag>
-                </div>
+                {/* Live Computed Score Snapshot — only shown after all 4 questions are answered */}
+                {(() => {
+                  const allAnswered = [formDataInput.q1, formDataInput.q2, formDataInput.q3, formDataInput.q4].every(v => v !== undefined && v !== null)
+                  const rawScore = allAnswered
+                    ? (((formDataInput.q1 + formDataInput.q2 + formDataInput.q3 + formDataInput.q4) / 12) * 100).toFixed(0)
+                    : null
+                  const answeredCount = [formDataInput.q1, formDataInput.q2, formDataInput.q3, formDataInput.q4].filter(v => v !== undefined && v !== null).length
+                  return (
+                    <div className="p-3.5 bg-[#8C4BFF]/5 dark:bg-[#8C4BFF]/15 border border-[#8C4BFF]/20 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-[#8C4BFF] block">Computed Outcome Score</span>
+                        {allAnswered ? (
+                          <span className="text-base font-black text-slate-800 dark:text-slate-100 block">
+                            {rawScore}%
+                          </span>
+                        ) : (
+                          <span className="text-sm font-bold text-slate-400 dark:text-slate-500 block">
+                            {answeredCount} / 4 questions answered — complete all to see score
+                          </span>
+                        )}
+                      </div>
+                      <Tag
+                        color={allAnswered ? 'success' : 'default'}
+                        className="font-bold text-[9px] px-2.5 py-0.5 rounded-full border-none"
+                      >
+                        {allAnswered ? '📈 Ready to Sync' : '⏳ Incomplete'}
+                      </Tag>
+                    </div>
+                  )
+                })()}
               </div>
             )}
 

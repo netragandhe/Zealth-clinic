@@ -16,6 +16,8 @@ import {
 } from '@ant-design/icons'
 import { toast } from 'react-hot-toast'
 import api from '../../../../api/axios'
+import { isAppointmentUpcoming, sortAppointmentsUpcoming } from '../../../../utils/appointmentUtils'
+import { computeActivePlanAdherence } from '../../../../utils/progressUtils'
 
 export default function PatientDashboard({ store, navigate }) {
   const [loading, setLoading] = useState(true)
@@ -119,8 +121,10 @@ export default function PatientDashboard({ store, navigate }) {
 
   const patientName = dashboardData.profile?.fullName || dashboardData.profile?.name || store?.userName || 'Patient'
   
-  const upcomingAppts = dashboardData.appointments.filter(a => ['scheduled', 'confirmed', 'upcoming', 'pending'].includes((a.status || 'Scheduled').toLowerCase()))
-  const nextAppt = upcomingAppts[0] || dashboardData.appointments[0]
+  const upcomingAppts = sortAppointmentsUpcoming(
+    dashboardData.appointments.filter(a => isAppointmentUpcoming(a))
+  )
+  const nextAppt = upcomingAppts[0] || null
   const nextApptTime = nextAppt ? `${nextAppt.date || ''} ${nextAppt.startTime || ''}`.trim() : 'No upcoming appointment'
 
   const primaryDocObj = dashboardData.careTeam[0]
@@ -129,7 +133,7 @@ export default function PatientDashboard({ store, navigate }) {
   const primaryClinic = nextAppt?.branchName || primaryDocObj?.clinic || 'Not Assigned'
 
   const activePlans = dashboardData.treatmentPlans.filter(p => (p.status || 'Active').toLowerCase() === 'active')
-  const activePlanAdherence = activePlans[0]?.overallProgress !== undefined ? activePlans[0].overallProgress : 0
+  const activePlanAdherence = computeActivePlanAdherence(dashboardData.treatmentPlans)
   const plansSummaryText = activePlans.length > 0 ? activePlans.map(p => p.condition).filter(Boolean).join(' & ') : 'No active treatment plans'
 
   const doctorsCount = dashboardData.careTeam.length
