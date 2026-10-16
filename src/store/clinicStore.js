@@ -9,6 +9,14 @@ import {
 } from '../features/settings/api/settingsApi'
 import { getPatients, getPractitioners, getProducts, createProduct, updateProduct, deleteProduct, getBranches, getClinicDetails } from '../features/calendar/api/clinicAdminApi'
 
+export const DEFAULT_CANCELLATION_REASONS = [
+  { id: 'cr1', reason: 'Client Cancelled', archived: false },
+  { id: 'cr2', reason: 'Practitioner Cancelled', archived: false },
+  { id: 'cr3', reason: 'Sick', archived: false },
+  { id: 'cr4', reason: 'Hospital Admission', archived: false },
+  { id: 'cr5', reason: 'No Show', archived: false },
+]
+
 export const useClinicStore = create((set, get) => ({
   darkMode: typeof window !== 'undefined' ? localStorage.getItem('darkMode') === 'true' : false,
   toggleDarkMode: () => {
@@ -122,7 +130,8 @@ export const useClinicStore = create((set, get) => ({
           set({ integrations: integrationsRes.value.data })
         }
         if (reasonsRes.status === 'fulfilled' && reasonsRes.value?.success && Array.isArray(reasonsRes.value.data)) {
-          set({ cancellationReasons: reasonsRes.value.data })
+          const apiReasons = reasonsRes.value.data
+          set({ cancellationReasons: apiReasons.length > 0 ? apiReasons : DEFAULT_CANCELLATION_REASONS })
         }
         if (termsRes.status === 'fulfilled' && termsRes.value?.success && Array.isArray(termsRes.value.data)) {
           set((state) => ({
@@ -395,13 +404,7 @@ export const useClinicStore = create((set, get) => ({
   },
 
   /* Cancellation reasons */
-  cancellationReasons: [
-    { id: 'cr1', reason: 'Client Cancelled', archived: false },
-    { id: 'cr2', reason: 'Practitioner Cancelled', archived: false },
-    { id: 'cr3', reason: 'Sick', archived: false },
-    { id: 'cr4', reason: 'Hospital Admission', archived: false },
-    { id: 'cr5', reason: 'No Show', archived: false },
-  ],
+  cancellationReasons: DEFAULT_CANCELLATION_REASONS,
 
   /* Calendar settings */
   workHours: { startTime: '09:00', endTime: '17:00' },

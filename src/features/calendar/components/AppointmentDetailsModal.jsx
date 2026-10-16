@@ -19,7 +19,7 @@ import {
   CloseCircleFilled,
   PlusOutlined,
 } from '@ant-design/icons'
-import { useClinicStore } from '../../../store/clinicStore'
+import { useClinicStore, DEFAULT_CANCELLATION_REASONS } from '../../../store/clinicStore'
 import { toast } from 'react-hot-toast'
 import dayjs from 'dayjs'
 
@@ -324,6 +324,7 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
   }
 
   const handleMarkArrived = () => {
+    if (appointment?.status === 'Cancelled') return
     const updated = { ...appointment, status: 'Arrived' }
     store.updateAppointment(updated)
     toast.success(`${appointment.patientName} marked as Arrived!`)
@@ -331,6 +332,7 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
   }
 
   const handleMarkDNA = () => {
+    if (appointment?.status === 'Cancelled') return
     const updated = { ...appointment, status: 'DNA' }
     store.updateAppointment(updated)
     toast.success(`${appointment.patientName} marked as Did Not Arrive (DNA)!`)
@@ -1042,12 +1044,19 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
 
             {/* Travel metrics if active */}
             {(() => {
+              if (appointment.status === 'Cancelled') return null
+
               const tObj = appointment.travel || appointment.travelDetails || {}
+              const isTravelEnabled = tObj.providerTravel === true ||
+                tObj.providerTravel === 'true' ||
+                tObj.hasTravel === true ||
+                tObj.hasTravel === 'true' ||
+                Boolean(tObj.nonLabourCosts)
+
+              if (!isTravelEnabled) return null
+
               const toMins = parseInt(tObj.travelToMins || 0, 10)
               const backMins = parseInt(tObj.travelBackMins || 0, 10)
-              const hasTravel = tObj.providerTravel || tObj.nonLabourCosts || toMins > 0 || backMins > 0
-
-              if (!hasTravel) return null
 
               return (
                 <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-dashed border-amber-300 dark:border-amber-800/60 p-3.5 rounded-2xl space-y-2">
@@ -1100,6 +1109,8 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
                     ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
                     : (appointment.status === 'DNA' || appointment.status === 'Did Not Arrive')
                     ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400'
+                    : appointment.status === 'Cancelled'
+                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400'
                     : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400'
                 }`}>
                   {appointment.status === 'DNA' ? 'Did Not Arrive' : (appointment.status || 'Scheduled')}
@@ -1108,11 +1119,14 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  onClick={handleMarkArrived}
-                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl font-bold text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 border-none shadow-sm ${
-                    appointment.status === 'Arrived'
-                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-400'
-                      : 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                  onClick={appointment.status === 'Cancelled' ? undefined : handleMarkArrived}
+                  disabled={appointment.status === 'Cancelled'}
+                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 border-none shadow-sm ${
+                    appointment.status === 'Cancelled'
+                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60'
+                      : appointment.status === 'Arrived'
+                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-400 cursor-pointer'
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer'
                   }`}
                 >
                   <CheckCircleFilled style={{ fontSize: 14 }} />
@@ -1120,11 +1134,14 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
                 </button>
                 <button
                   type="button"
-                  onClick={handleMarkDNA}
-                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl font-bold text-xs cursor-pointer transition-all flex items-center justify-center gap-1.5 border-none shadow-sm ${
-                    (appointment.status === 'DNA' || appointment.status === 'Did Not Arrive')
-                      ? 'bg-rose-600 text-white ring-2 ring-rose-400'
-                      : 'bg-rose-500 hover:bg-rose-600 text-white'
+                  onClick={appointment.status === 'Cancelled' ? undefined : handleMarkDNA}
+                  disabled={appointment.status === 'Cancelled'}
+                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 border-none shadow-sm ${
+                    appointment.status === 'Cancelled'
+                      ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60'
+                      : (appointment.status === 'DNA' || appointment.status === 'Did Not Arrive')
+                      ? 'bg-rose-600 text-white ring-2 ring-rose-400 cursor-pointer'
+                      : 'bg-rose-500 hover:bg-rose-600 text-white cursor-pointer'
                   }`}
                 >
                   <CloseCircleFilled style={{ fontSize: 14 }} />
@@ -1190,19 +1207,21 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
                   <Button size="small" icon={<HistoryOutlined />} onClick={() => setChangelogVisible(true)} className="rounded-lg text-[10px] font-bold px-2">
                     Change Log
                   </Button>
-                  <Button 
-                    size="small" 
-                    danger 
-                    icon={<CloseCircleOutlined />} 
-                    onClick={() => {
-                      setSelectedCancelReason('')
-                      setCancelNotes('')
-                      setCancelModalOpen(true)
-                    }} 
-                    className="rounded-lg font-bold text-[10px] px-2"
-                  >
-                    Cancel Appointment
-                  </Button>
+                  {appointment.status !== 'Cancelled' && (
+                    <Button 
+                      size="small" 
+                      danger 
+                      icon={<CloseCircleOutlined />} 
+                      onClick={() => {
+                        setSelectedCancelReason('')
+                        setCancelNotes('')
+                        setCancelModalOpen(true)
+                      }} 
+                      className="rounded-lg font-bold text-[10px] px-2"
+                    >
+                      Cancel Appointment
+                    </Button>
+                  )}
                   <Button size="small" danger icon={<CloseCircleOutlined />} onClick={handleArchive} className="rounded-lg text-[10px] font-bold px-2">
                     Archive
                   </Button>
@@ -1223,7 +1242,11 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
           </div>
         }
         open={cancelModalOpen}
-        onCancel={() => setCancelModalOpen(false)}
+        onCancel={() => {
+          setCancelModalOpen(false)
+          setSelectedCancelReason('')
+          setCancelNotes('')
+        }}
         footer={null}
         destroyOnHidden
         width={420}
@@ -1238,18 +1261,28 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
               Reason for Cancellation <span className="text-rose-500">*</span>
             </label>
-            <Select
-              placeholder="Select cancellation reason..."
-              value={selectedCancelReason || undefined}
-              onChange={setSelectedCancelReason}
-              className="w-full h-10 rounded-xl"
-            >
-              {(store.cancellationReasons || []).filter(r => !r.archived).map((cr) => (
-                <Option key={cr.id} value={cr.reason}>
-                  {cr.reason}
-                </Option>
-              ))}
-            </Select>
+            {(() => {
+              const rawReasons = store.cancellationReasons
+              const hasConfiguredList = Array.isArray(rawReasons) && rawReasons.length > 0
+              const reasonsToDisplay = hasConfiguredList
+                ? rawReasons.filter(r => !r.archived)
+                : (DEFAULT_CANCELLATION_REASONS || []).filter(r => !r.archived)
+
+              return (
+                <Select
+                  placeholder="Select cancellation reason..."
+                  value={selectedCancelReason || undefined}
+                  onChange={setSelectedCancelReason}
+                  className="w-full h-10 rounded-xl"
+                >
+                  {reasonsToDisplay.map((cr) => (
+                    <Option key={cr.id || cr.reason} value={cr.reason}>
+                      {cr.reason}
+                    </Option>
+                  ))}
+                </Select>
+              )
+            })()}
           </div>
 
           <div>
@@ -1266,7 +1299,14 @@ export default function AppointmentDetailsModal({ open, onCancel, appointment, o
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <Button onClick={() => setCancelModalOpen(false)} className="rounded-xl font-bold text-xs h-9">
+            <Button
+              onClick={() => {
+                setCancelModalOpen(false)
+                setSelectedCancelReason('')
+                setCancelNotes('')
+              }}
+              className="rounded-xl font-bold text-xs h-9"
+            >
               Back
             </Button>
             <Button

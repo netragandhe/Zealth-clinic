@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Table, Button, Input, Modal, Form, Select, DatePicker, Tooltip, Tag, Space, Divider } from 'antd'
 import { SearchOutlined, UserOutlined, FileTextOutlined, CreditCardOutlined, DollarOutlined, BankOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { toast } from 'react-hot-toast'
@@ -12,6 +12,7 @@ const { Option } = Select
 export default function PaymentsPage() {
   const store = useClinicStore()
   const navigate = useNavigate()
+  const location = useLocation()
   const { darkMode } = store
   const [payments, setPayments] = useState([])
   const [search, setSearch] = useState('')
@@ -66,6 +67,28 @@ export default function PaymentsPage() {
     loadPatientsAndInvoices()
   }, [search])
 
+  useEffect(() => {
+    if (location.state?.preselectInvoice) {
+      loadPatientsAndInvoices()
+      const inv = location.state.preselectInvoice
+      const invDue = inv.due !== undefined && inv.due !== null ? parseFloat(inv.due) : (parseFloat(inv.amount) || 0)
+      const autoAmt = invDue > 0 ? invDue.toFixed(2) : (parseFloat(inv.amount) || 0).toFixed(2)
+      const clientName = inv.clientName || inv.patientName || ''
+      setSelectedClient({ id: inv.patientId, name: clientName, fullName: clientName })
+      setSelectedInvoice(inv)
+      setEnteredAmount(autoAmt)
+      form.setFieldsValue({
+        clientName,
+        patientId: inv.patientId || null,
+        invoiceReference: inv.displayId || inv.invoiceNumber || inv.id,
+        amount: autoAmt,
+        date: dayjs(),
+        paymentMethod: 'Direct Deposit / EFT'
+      })
+      setModalOpen(true)
+    }
+  }, [location.state])
+
   const handleOpenModal = () => {
     loadPatientsAndInvoices()
     form.resetFields()
@@ -74,7 +97,7 @@ export default function PaymentsPage() {
     setEnteredAmount('')
     form.setFieldsValue({
       date: dayjs(),
-      paymentMethod: 'Stripe / Credit Card'
+      paymentMethod: 'Direct Deposit / EFT'
     })
     setModalOpen(true)
   }
@@ -144,7 +167,7 @@ export default function PaymentsPage() {
       patientId: patientId,
       amount: parseFloat(values.amount) || 0,
       paymentDate: values.date ? values.date.format('DD MMM YYYY') : dayjs().format('DD MMM YYYY'),
-      paymentMethod: values.paymentMethod || 'Stripe / Credit Card',
+      paymentMethod: values.paymentMethod || 'Direct Deposit / EFT',
       invoiceReference: values.invoiceReference || (selectedInvoice ? (selectedInvoice.displayId || selectedInvoice.invoiceNumber || selectedInvoice.id) : null),
       transactionReference: values.transactionReference ? values.transactionReference.trim() : null
     }
@@ -213,7 +236,7 @@ export default function PaymentsPage() {
       key: 'paymentMethod',
       render: (_, record) => (
         <span className="text-slate-600 dark:text-slate-400 text-xs">
-          {record.paymentMethod || 'Stripe / Credit Card'}
+          {record.paymentMethod || 'Direct Deposit / EFT'}
         </span>
       ),
     },
@@ -288,7 +311,7 @@ export default function PaymentsPage() {
               const rcpt = record.receiptNumber || record.id || 'RCPT'
               const invRef = record.invoiceReference || 'Unallocated'
               const txId = record.transactionId || `tx_${rcpt.toLowerCase().replace(/[^a-z0-9]/g, '')}_892`
-              const method = record.paymentMethod || 'Stripe / Credit Card'
+              const method = record.paymentMethod || 'Direct Deposit / EFT'
               const status = record.status || 'Successful (Paid)'
 
               return (
@@ -372,8 +395,8 @@ export default function PaymentsPage() {
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
             <CreditCardOutlined className="text-[#8C4BFF] text-lg" />
             <div>
-              <h3 className="font-bold text-base text-slate-800 dark:text-white m-0">Record & Allocate Payment</h3>
-              <p className="text-xs text-slate-400 font-normal m-0">Select client, allocate against outstanding invoices, and update balance due in real time.</p>
+              <h3 className="font-bold text-base text-slate-800 dark:text-white m-0">Record & Allocate External Payment</h3>
+              <p className="text-xs text-slate-400 font-normal m-0">Record an offline payment received (EFT, Cash, POS terminal) and allocate against outstanding invoices.</p>
             </div>
           </div>
         }
@@ -390,7 +413,7 @@ export default function PaymentsPage() {
           onFinish={handleAddPayment} 
           className="mt-4 space-y-4"
           initialValues={{
-            paymentMethod: 'Stripe / Credit Card',
+            paymentMethod: 'Direct Deposit / EFT',
             date: dayjs()
           }}
         >
@@ -527,17 +550,17 @@ export default function PaymentsPage() {
 
             <Form.Item 
               name="paymentMethod" 
-              label={<span className="text-xs font-bold text-slate-700 dark:text-slate-300">Payment Method *</span>} 
+              label={<span className="text-xs font-bold text-slate-700 dark:text-slate-300">Payment Method * <span className="text-slate-400 font-normal">(Receipt / remittance recording)</span></span>} 
               rules={[{ required: true, message: 'Please select payment method' }]}
               className="mb-2"
             >
               <Select className="h-10 rounded-lg">
-                <Option value="Stripe / Credit Card">Stripe / Credit Card</Option>
                 <Option value="Direct Deposit / EFT">Direct Deposit / EFT</Option>
                 <Option value="Cash">Cash</Option>
                 <Option value="HICAPS / EFTPOS">HICAPS / EFTPOS</Option>
                 <Option value="Medicare">Medicare</Option>
                 <Option value="NDIS Plan Manager">NDIS Plan Manager</Option>
+                <Option value="Credit Card (Terminal / POS)">External Credit Card (Terminal / POS)</Option>
                 <Option value="Cheque">Cheque</Option>
               </Select>
             </Form.Item>

@@ -45,7 +45,9 @@ import {
   ShoppingOutlined,
   AppstoreOutlined,
   MessageFilled,
-  MessageOutlined
+  MessageOutlined,
+  LeftOutlined,
+  RightOutlined
 } from '@ant-design/icons'
 import { toast } from 'react-hot-toast'
 import logoImg from '../assets/logo2.png'
@@ -1271,54 +1273,75 @@ export default function DashboardLayout({ children }) {
             </Link>
           </div>
 
-          {/* Middle: Top Horizontal Navigation */}
-          <nav
-            ref={navRef}
-            onWheel={handleWheel}
-            className="hidden lg:flex items-center justify-start 2xl:justify-center gap-1 xl:gap-2 2xl:gap-3 h-full flex-1 min-w-0 mx-1 xl:mx-2 overflow-x-auto select-none no-scrollbar"
-            style={{
-              scrollBehavior: 'smooth'
-            }}
-          >
-            {navItems.filter(item => item.label !== 'Details' && item.label !== 'Profile & Settings').map((item) => {
-              const active = isActive(item)
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className="relative flex items-center h-full px-1 xl:px-1.5 py-5 text-[10px] xl:text-[10.5px] 2xl:text-[11px] font-bold transition-all duration-200 whitespace-nowrap"
-                  style={{
-                    color: active
-                      ? '#8C4BFF'
-                      : darkMode
-                        ? '#94A3B8'
-                        : '#475569',
-                  }}
-                  onMouseEnter={e => {
-                    if (!active) {
-                      e.currentTarget.style.color = darkMode ? '#FFFFFF' : '#8C4BFF';
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!active) {
-                      e.currentTarget.style.color = darkMode ? '#94A3B8' : '#475569';
-                    }
-                  }}
-                >
-                  <span className="flex items-center gap-1.5">
-                    {getNavItemIcon(item.label)}
-                    <span>{item.label}</span>
-                  </span>
-                  {active && (
-                    <div
-                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
-                      style={{ backgroundColor: '#8C4BFF' }}
-                    />
-                  )}
-                </Link>
-              )
-            })}
-          </nav>
+          {/* Middle: Top Horizontal Navigation with Laptop Scroll Support */}
+          <div className="hidden lg:flex items-center flex-1 min-w-0 mx-1 xl:mx-2 relative h-full">
+            <button
+              onClick={() => {
+                if (navRef.current) navRef.current.scrollBy({ left: -140, behavior: 'smooth' });
+              }}
+              className="flex 2xl:hidden items-center justify-center w-5 h-7 text-slate-400 hover:text-[#8C4BFF] hover:bg-slate-100 dark:hover:bg-slate-800 rounded z-10 transition-colors mr-0.5 flex-shrink-0 cursor-pointer border-none bg-transparent"
+              title="Scroll navigation left"
+              aria-label="Scroll navigation left"
+            >
+              <LeftOutlined style={{ fontSize: 9 }} />
+            </button>
+
+            <nav
+              ref={navRef}
+              onWheel={handleWheel}
+              className="flex items-center justify-start 2xl:justify-center gap-1 xl:gap-2 2xl:gap-3 h-full flex-1 min-w-0 overflow-x-auto select-none no-scrollbar scroll-smooth"
+            >
+              {navItems.filter(item => item.label !== 'Details' && item.label !== 'Profile & Settings').map((item) => {
+                const active = isActive(item)
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className="relative flex items-center h-full px-1 xl:px-1.5 py-5 text-[10px] xl:text-[10.5px] 2xl:text-[11px] font-bold transition-all duration-200 whitespace-nowrap"
+                    style={{
+                      color: active
+                        ? '#8C4BFF'
+                        : darkMode
+                          ? '#94A3B8'
+                          : '#475569',
+                    }}
+                    onMouseEnter={e => {
+                      if (!active) {
+                        e.currentTarget.style.color = darkMode ? '#FFFFFF' : '#8C4BFF';
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!active) {
+                        e.currentTarget.style.color = darkMode ? '#94A3B8' : '#475569';
+                      }
+                    }}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {getNavItemIcon(item.label)}
+                      <span>{item.label}</span>
+                    </span>
+                    {active && (
+                      <div
+                        className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full"
+                        style={{ backgroundColor: '#8C4BFF' }}
+                      />
+                    )}
+                  </Link>
+                )
+              })}
+            </nav>
+
+            <button
+              onClick={() => {
+                if (navRef.current) navRef.current.scrollBy({ left: 140, behavior: 'smooth' });
+              }}
+              className="flex 2xl:hidden items-center justify-center w-5 h-7 text-slate-400 hover:text-[#8C4BFF] hover:bg-slate-100 dark:hover:bg-slate-800 rounded z-10 transition-colors ml-0.5 flex-shrink-0 cursor-pointer border-none bg-transparent"
+              title="Scroll navigation right"
+              aria-label="Scroll navigation right"
+            >
+              <RightOutlined style={{ fontSize: 9 }} />
+            </button>
+          </div>
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1 sm:gap-3 xl:gap-4 flex-shrink-0">

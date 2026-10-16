@@ -4,6 +4,7 @@
  * Usage: usePageTitle('Appointments') → "Sunrise Physio — Appointments | ZealthOS"
  */
 import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useClinicStore } from '../store/clinicStore'
 
 const PAGE_LABEL_MAP = {
@@ -36,19 +37,24 @@ const PAGE_LABEL_MAP = {
  */
 export const usePageTitle = (pageLabel) => {
   const clinicName = useClinicStore((state) => state.clinicDetails?.name)
+  let location = null
+  try {
+    location = useLocation()
+  } catch (e) {}
 
   useEffect(() => {
     const label = pageLabel || (() => {
-      const parts = window.location.pathname.split('/').filter(Boolean)
+      const pathname = location?.pathname || (typeof window !== 'undefined' ? window.location.pathname : '')
+      const parts = pathname.split('/').filter(Boolean)
       const last = parts[parts.length - 1] || ''
-      return PAGE_LABEL_MAP[last] || PAGE_LABEL_MAP[parts[0]] || 'Dashboard'
+      return PAGE_LABEL_MAP[last] || PAGE_LABEL_MAP[parts[0]] || (last ? last.charAt(0).toUpperCase() + last.slice(1).replace(/-/g, ' ') : 'Dashboard')
     })()
 
     const clinic = clinicName || 'ZealthOS'
     document.title = clinicName
       ? `${clinic} — ${label} | ZealthOS`
       : `${label} | ZealthOS`
-  }, [pageLabel, clinicName])
+  }, [pageLabel, clinicName, location?.pathname])
 }
 
 export default usePageTitle

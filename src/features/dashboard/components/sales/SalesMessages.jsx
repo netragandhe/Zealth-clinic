@@ -189,7 +189,7 @@ export default function SalesMessages({ store: propStore }) {
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
           <h3 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider m-0">Conversations</h3>
           <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
-            {isHeadAdmin ? 'Super Admin Mode' : 'Live DB'}
+            {isHeadAdmin ? 'Super Admin Mode' : 'Connected'}
           </span>
         </div>
         <div className="flex-grow overflow-y-auto p-2 space-y-1">

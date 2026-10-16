@@ -476,7 +476,7 @@ export default function ClinicAdminDashboard({ store: propStore }) {
 
       {/* Main charts layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border border-slate-100 dark:border-slate-800 dark:bg-slate-900 rounded-2xl shadow-sm" title={<span className="font-extrabold text-sm text-slate-700 dark:text-slate-200">Monthly Clinical Appointments Trend <span className="text-[10px] text-emerald-500 font-semibold ml-2">Live DB</span></span>}>
+        <Card className="border border-slate-100 dark:border-slate-800 dark:bg-slate-900 rounded-2xl shadow-sm" title={<span className="font-extrabold text-sm text-slate-700 dark:text-slate-200">Monthly Clinical Appointments Trend</span>}>
           <div style={{ width: '100%', height: 240, minHeight: 240 }}>
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={chartActivityData}>
@@ -490,7 +490,7 @@ export default function ClinicAdminDashboard({ store: propStore }) {
           </div>
         </Card>
 
-        <Card className="border border-slate-100 dark:border-slate-800 dark:bg-slate-900 rounded-2xl shadow-sm" title={<span className="font-extrabold text-sm text-slate-700 dark:text-slate-200">Financial Revenue Logs <span className="text-[10px] text-emerald-500 font-semibold ml-2">Live DB</span></span>}>
+        <Card className="border border-slate-100 dark:border-slate-800 dark:bg-slate-900 rounded-2xl shadow-sm" title={<span className="font-extrabold text-sm text-slate-700 dark:text-slate-200">Financial Revenue Logs</span>}>
           <div style={{ width: '100%', height: 240, minHeight: 240 }}>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={chartRevenueData}>
