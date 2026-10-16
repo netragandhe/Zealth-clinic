@@ -382,8 +382,8 @@ export default function ReportsPage() {
       label: 'Outstanding',
       icon: <DollarOutlined className="border border-slate-600 rounded-full p-0.5" />,
       value: `$${Number(metrics.outstanding || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      sub: Number(metrics.outstanding || 0) === 0 ? 'All invoices settled' : 'Unpaid in date range',
-      tooltip: 'Total unpaid balance of invoices issued within the selected date range and filter criteria (excluding cancelled and settled invoices).',
+      sub: Number(metrics.outstanding || 0) === 0 ? 'All invoices settled' : 'Total current unpaid balance',
+      tooltip: 'Total current unpaid balance across all active invoices (excluding draft and cancelled invoices, matching Dashboard).',
       cat: 'Financial'
     },
     {

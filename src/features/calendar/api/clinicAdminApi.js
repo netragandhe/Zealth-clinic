@@ -108,7 +108,8 @@ export const getInvoices = async (params) => {
 }
 
 export const createInvoice = async (invoiceData) => {
-  const res = await api.post('/api/clinic-admin/invoices', invoiceData)
+  const headers = invoiceData?.idempotencyKey ? { 'x-idempotency-key': invoiceData.idempotencyKey } : {}
+  const res = await api.post('/api/clinic-admin/invoices', invoiceData, { headers })
   return res.data
 }
 
