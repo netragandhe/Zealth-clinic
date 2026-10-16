@@ -842,7 +842,7 @@ export default function CalendarPage() {
     const blocks = []
 
     dayAppts.forEach(appt => {
-      if (!appt) return
+      if (!appt || appt.status === 'Cancelled') return
       let travelObj = appt?.travel || appt?.travelDetails || {}
       if (typeof travelObj === 'string') {
         try { travelObj = JSON.parse(travelObj) } catch (e) { travelObj = {} }
@@ -1535,7 +1535,14 @@ export default function CalendarPage() {
       {/* Create appointment form modal */}
       <AppointmentModal
         open={createModalVisible}
-        onCancel={() => setCreateModalVisible(false)}
+        onCancel={() => {
+          setCreateModalVisible(false)
+          setDefaultSlot(null)
+        }}
+        onSuccess={() => {
+          setCreateModalVisible(false)
+          setDefaultSlot(null)
+        }}
         defaultTimeSlot={defaultSlot}
       />
 

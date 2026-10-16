@@ -1809,7 +1809,7 @@ export default function ClinicAdminSettingsPage() {
                 onClick={fetchTemplates}
                 className="rounded-xl font-semibold border-slate-200 h-9"
               >
-                Refresh Templates DB
+                Refresh Templates
               </Button>
             </div>
 

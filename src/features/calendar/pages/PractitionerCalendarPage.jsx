@@ -891,7 +891,7 @@ export default function PractitionerCalendarPage() {
     }
 
     dayAppts.forEach(appt => {
-      if (!appt) return
+      if (!appt || appt.status === 'Cancelled') return
       let travelObj = appt?.travel || appt?.travelDetails || {}
       if (typeof travelObj === 'string') {
         try { travelObj = JSON.parse(travelObj) } catch (e) { travelObj = {} }
@@ -902,9 +902,7 @@ export default function PractitionerCalendarPage() {
       const isTravelEnabled = travelObj?.providerTravel === true ||
         travelObj?.providerTravel === 'true' ||
         travelObj?.hasTravel === true ||
-        travelObj?.hasTravel === 'true' ||
-        travelToMins > 0 ||
-        travelBackMins > 0
+        travelObj?.hasTravel === 'true'
 
       if (!isTravelEnabled) return
 

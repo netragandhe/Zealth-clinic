@@ -175,9 +175,9 @@ export default function ClientProfilePage() {
     alerts: '',
     tags: [],
     joinDate: dayjs().format('YYYY-MM-DD'),
-    gender: 'Male',
+    gender: undefined,
     consentStatus: 'No Response',
-    communicationPreferences: 'none',
+    communicationPreferences: 'Both SMS and Email',
     branch: '',
   }), [])
 
@@ -290,6 +290,7 @@ export default function ClientProfilePage() {
     },
   ])
   const [form] = Form.useForm()
+  const watchedFundingType = Form.useWatch('fundingType', form) || patient?.fundingType
   const [caseForm] = Form.useForm()
   const [docForm] = Form.useForm()
   const [paymentForm] = Form.useForm()
@@ -437,7 +438,7 @@ export default function ClientProfilePage() {
       date: dayjs().subtract(2, 'day').format('DD/MM/YYYY'),
       service: 'Initial Physiotherapy Assessment',
       amount: 140.00,
-      paymentMethod: 'Credit Card / Stripe',
+      paymentMethod: 'Direct Deposit / EFT',
       status: 'Paid',
       transactionId: 'txn_3Mkd98218001'
     },
@@ -998,10 +999,13 @@ export default function ClientProfilePage() {
           </Form.Item>
           <Form.Item
             name="email"
-            label={<span className="text-slate-500 font-semibold text-xs">Email</span>}
-            rules={[{ type: 'email', message: 'Please enter a valid email' }]}
+            label={<span className="text-slate-500 font-semibold text-xs">Email {sendInvite ? <span className="text-purple-600 font-bold">*</span> : ''}</span>}
+            rules={[
+              { required: sendInvite, message: 'Email address is required to send portal invitation' },
+              { type: 'email', message: 'Please enter a valid email address' }
+            ]}
           >
-            <Input className="rounded-xl h-10 bg-[#F1F5F9]/50 border-slate-200" />
+            <Input className="rounded-xl h-10 bg-[#F1F5F9]/50 border-slate-200" placeholder="e.g. client@example.com" />
           </Form.Item>
           {/* Portal Invitation — replaces manual password setting */}
           <div className="col-span-1 md:col-span-2">
@@ -1278,137 +1282,143 @@ export default function ClientProfilePage() {
             </Form.Item>
           </div>
 
-          {/* NDIS Details */}
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h5 className="font-extrabold text-xs uppercase text-[#8C4BFF] mb-3 flex items-center gap-1.5">
-              <SafetyCertificateOutlined /> NDIS Details
-            </h5>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Form.Item
-                name="ndisNo"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">NDIS Participant Number</span>}
-              >
-                <Input placeholder="e.g. 430982109" className="rounded-xl h-10" />
-              </Form.Item>
-              <Form.Item
-                name="ndisFundingManagement"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Funding Management</span>}
-              >
-                <Select placeholder="Select management type" className="rounded-xl h-10 flex items-center" allowClear>
-                  <Option value="Plan Managed">Plan Managed</Option>
-                  <Option value="Self Managed">Self Managed</Option>
-                  <Option value="NDIA Managed">NDIA Managed (Agency)</Option>
-                </Select>
-              </Form.Item>
-              <Form.Item
-                name="ndisPlanStart"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Plan Start Date</span>}
-              >
-                <DatePicker className="w-full rounded-xl h-10" format="DD/MM/YYYY" />
-              </Form.Item>
-              <Form.Item
-                name="ndisPlanEnd"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Plan End Date</span>}
-              >
-                <DatePicker className="w-full rounded-xl h-10" format="DD/MM/YYYY" />
-              </Form.Item>
-            </div>
-
-            {/* Nominee / Plan Manager details */}
-            <div className="mt-4 pt-4 border-t border-dashed border-slate-100 dark:border-slate-800">
-              <h6 className="font-bold text-xs text-slate-500 mb-3">Plan Manager / Nominee Details</h6>
+          {/* NDIS Details - Displayed when NDIS is selected or already recorded */}
+          {(watchedFundingType === 'NDIS' || (!watchedFundingType && patient?.ndisNo)) && (
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-4 transition-all">
+              <h5 className="font-extrabold text-xs uppercase text-[#8C4BFF] mb-3 flex items-center gap-1.5">
+                <SafetyCertificateOutlined /> NDIS Details
+              </h5>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <Form.Item
-                  name="ndisNomineeName"
-                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Nominee / Plan Manager Name</span>}
+                  name="ndisNo"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">NDIS Participant Number</span>}
                 >
-                  <Input placeholder="e.g. MyPlanManager / Jane Doe" className="rounded-xl h-10" />
+                  <Input placeholder="e.g. 430982109" className="rounded-xl h-10" />
                 </Form.Item>
                 <Form.Item
-                  name="ndisNomineeRelation"
-                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Relationship / Entity</span>}
+                  name="ndisFundingManagement"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Funding Management</span>}
                 >
-                  <Input placeholder="e.g. Plan Manager / Parent" className="rounded-xl h-10" />
+                  <Select placeholder="Select management type" className="rounded-xl h-10 flex items-center" allowClear>
+                    <Option value="Plan Managed">Plan Managed</Option>
+                    <Option value="Self Managed">Self Managed</Option>
+                    <Option value="NDIA Managed">NDIA Managed (Agency)</Option>
+                  </Select>
                 </Form.Item>
                 <Form.Item
-                  name="ndisNomineePhone"
-                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Contact Phone</span>}
+                  name="ndisPlanStart"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Plan Start Date</span>}
                 >
-                  <Input placeholder="e.g. 1800 123 456" className="rounded-xl h-10" />
+                  <DatePicker className="w-full rounded-xl h-10" format="DD/MM/YYYY" />
                 </Form.Item>
                 <Form.Item
-                  name="ndisNomineeEmail"
-                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Invoices / Remittance Email</span>}
+                  name="ndisPlanEnd"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Plan End Date</span>}
                 >
-                  <Input placeholder="invoices@planmanager.com.au" className="rounded-xl h-10" />
+                  <DatePicker className="w-full rounded-xl h-10" format="DD/MM/YYYY" />
+                </Form.Item>
+              </div>
+
+              {/* Nominee / Plan Manager details */}
+              <div className="mt-4 pt-4 border-t border-dashed border-slate-100 dark:border-slate-800">
+                <h6 className="font-bold text-xs text-slate-500 mb-3">Plan Manager / Nominee Details</h6>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <Form.Item
+                    name="ndisNomineeName"
+                    label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Nominee / Plan Manager Name</span>}
+                  >
+                    <Input placeholder="e.g. MyPlanManager / Jane Doe" className="rounded-xl h-10" />
+                  </Form.Item>
+                  <Form.Item
+                    name="ndisNomineeRelation"
+                    label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Relationship / Entity</span>}
+                  >
+                    <Input placeholder="e.g. Plan Manager / Parent" className="rounded-xl h-10" />
+                  </Form.Item>
+                  <Form.Item
+                    name="ndisNomineePhone"
+                    label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Contact Phone</span>}
+                  >
+                    <Input placeholder="e.g. 1800 123 456" className="rounded-xl h-10" />
+                  </Form.Item>
+                  <Form.Item
+                    name="ndisNomineeEmail"
+                    label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Invoices / Remittance Email</span>}
+                  >
+                    <Input placeholder="invoices@planmanager.com.au" className="rounded-xl h-10" />
+                  </Form.Item>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Workers Comp / WorkCover / TAC */}
+          {(watchedFundingType === 'WorkCover' || watchedFundingType === 'TAC' || (!watchedFundingType && patient?.workersCompClaimNo)) && (
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-4 transition-all">
+              <h5 className="font-extrabold text-xs uppercase text-amber-600 dark:text-amber-400 mb-3 flex items-center gap-1.5">
+                <WarningOutlined /> Workers Compensation / WorkCover / TAC
+              </h5>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Form.Item
+                  name="workersCompClaimNo"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Claim Number</span>}
+                >
+                  <Input placeholder="e.g. WC-992014-B" className="rounded-xl h-10" />
+                </Form.Item>
+                <Form.Item
+                  name="workersCompInsurer"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Insurance Company / WorkSafe Agent</span>}
+                >
+                  <Input placeholder="e.g. EML, Allianz, QBE, DXC" className="rounded-xl h-10" />
+                </Form.Item>
+                <Form.Item
+                  name="workersCompDateOfInjury"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Date of Injury / Incident</span>}
+                >
+                  <DatePicker className="w-full rounded-xl h-10" format="DD/MM/YYYY" />
+                </Form.Item>
+                <Form.Item
+                  name="workersCompCaseManager"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Case Manager Name & Phone</span>}
+                >
+                  <Input placeholder="e.g. Mark Roberts (03 9999 1111)" className="rounded-xl h-10" />
                 </Form.Item>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Workers Comp / WorkCover */}
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h5 className="font-extrabold text-xs uppercase text-amber-600 dark:text-amber-400 mb-3 flex items-center gap-1.5">
-              <WarningOutlined /> Workers Compensation / WorkCover
-            </h5>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Form.Item
-                name="workersCompClaimNo"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Claim Number</span>}
-              >
-                <Input placeholder="e.g. WC-992014-B" className="rounded-xl h-10" />
-              </Form.Item>
-              <Form.Item
-                name="workersCompInsurer"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Insurance Company / WorkSafe Agent</span>}
-              >
-                <Input placeholder="e.g. EML, Allianz, QBE, DXC" className="rounded-xl h-10" />
-              </Form.Item>
-              <Form.Item
-                name="workersCompDateOfInjury"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Date of Injury / Incident</span>}
-              >
-                <DatePicker className="w-full rounded-xl h-10" format="DD/MM/YYYY" />
-              </Form.Item>
-              <Form.Item
-                name="workersCompCaseManager"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Case Manager Name & Phone</span>}
-              >
-                <Input placeholder="e.g. Mark Roberts (03 9999 1111)" className="rounded-xl h-10" />
-              </Form.Item>
+          {/* Medicare Details */}
+          {(watchedFundingType === 'Medicare' || (!watchedFundingType && patient?.medicareCard)) && (
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-4 transition-all">
+              <h5 className="font-extrabold text-xs uppercase text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-1.5">
+                <PlusOutlined /> Medicare Details (EPC / CDM)
+              </h5>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Form.Item
+                  name="medicareCard"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Card Number</span>}
+                >
+                  <Input placeholder="e.g. 2198 44091 1" className="rounded-xl h-10" />
+                </Form.Item>
+                <Form.Item
+                  name="medicareRef"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Individual Ref Number (IRN)</span>}
+                >
+                  <Input placeholder="e.g. 1" className="rounded-xl h-10" />
+                </Form.Item>
+                <Form.Item
+                  name="medicareExpiry"
+                  label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Expiry (MM/YY)</span>}
+                >
+                  <Input className="rounded-xl h-10" placeholder="e.g. 11/28" />
+                </Form.Item>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Medicare */}
-          <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-            <h5 className="font-extrabold text-xs uppercase text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-1.5">
-              <PlusOutlined /> Medicare details
-            </h5>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Form.Item
-                name="medicareCard"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Card Number</span>}
-              >
-                <Input placeholder="e.g. 2198 44091 1" className="rounded-xl h-10" />
-              </Form.Item>
-              <Form.Item
-                name="medicareRef"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Individual Ref Number (IRN)</span>}
-              >
-                <Input placeholder="e.g. 1" className="rounded-xl h-10" />
-              </Form.Item>
-              <Form.Item
-                name="medicareExpiry"
-                label={<span className="text-slate-600 dark:text-slate-400 font-semibold text-xs">Expiry (MM/YY)</span>}
-              >
-                <Input className="rounded-xl h-10" placeholder="e.g. 11/28" />
-              </Form.Item>
-            </div>
-          </div>
-
-          {/* Private Insurance & DVA */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
+          {/* Private Health Insurance */}
+          {(watchedFundingType === 'Private' || (!watchedFundingType && patient?.privateHealthMemberNo)) && (
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-4 transition-all">
               <h5 className="font-extrabold text-xs uppercase text-emerald-600 dark:text-emerald-400 mb-3">Private Health Insurance</h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Form.Item
@@ -1433,8 +1443,11 @@ export default function ClientProfilePage() {
                 </Form.Item>
               </div>
             </div>
+          )}
 
-            <div>
+          {/* DVA Details */}
+          {(watchedFundingType === 'DVA' || (!watchedFundingType && patient?.dvaFile)) && (
+            <div className="border-b border-slate-100 dark:border-slate-800 pb-4 transition-all">
               <h5 className="font-extrabold text-xs uppercase text-slate-500 mb-3">DVA Details</h5>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Form.Item
@@ -1455,7 +1468,15 @@ export default function ClientProfilePage() {
                 </Form.Item>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Informational Guidance for Self-Funded / Unselected */}
+          {(!watchedFundingType || watchedFundingType === 'Self-Funded') && !patient?.ndisNo && !patient?.workersCompClaimNo && !patient?.medicareCard && !patient?.privateHealthMemberNo && !patient?.dvaFile && (
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+              <InfoCircleOutlined className="text-[#8C4BFF]" />
+              <span>Standard Private / Self-Funded client. Select a third-party scheme above if this client bills via NDIS, Medicare, WorkCover, Private Health, or DVA.</span>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -2060,7 +2081,7 @@ export default function ClientProfilePage() {
     const invoiceNum = receipt.invoiceNumber || 'INV-0001'
     const payDate = receipt.date || dayjs().format('DD/MM/YYYY')
     const serviceName = receipt.service || 'Physiotherapy Consultation'
-    const payMethod = receipt.paymentMethod || 'Credit Card / Stripe'
+    const payMethod = receipt.paymentMethod || 'Direct Deposit / EFT'
     const amountVal = (parseFloat(receipt.amount) || 0).toFixed(2)
     const txnId = receipt.transactionId || `TXN-${receiptNum}`
 
@@ -2324,7 +2345,7 @@ export default function ClientProfilePage() {
               paymentForm.resetFields()
               paymentForm.setFieldsValue({
                 amount: 120.00,
-                paymentMethod: 'Credit Card / Stripe',
+                paymentMethod: 'Direct Deposit / EFT',
                 service: 'Physiotherapy Consultation',
                 date: dayjs()
               })
@@ -2374,7 +2395,8 @@ export default function ClientProfilePage() {
                 rules={[{ required: true }]}
               >
                 <Select className="rounded-xl h-10 flex items-center">
-                  <Option value="Credit Card / Stripe">Credit Card (Stripe)</Option>
+                  <Option value="Direct Deposit / EFT">Direct Deposit / EFT</Option>
+                  <Option value="Credit Card (Terminal / POS)">Credit Card (Terminal / POS)</Option>
                   <Option value="EFTPOS Terminal">EFTPOS Terminal</Option>
                   <Option value="NDIS Direct Portal">NDIS Direct Claim / Portal</Option>
                   <Option value="Medicare Easyclaim">Medicare Easyclaim / HICAPS</Option>

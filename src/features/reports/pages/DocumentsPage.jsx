@@ -725,8 +725,8 @@ startxref
         />
       </div>
 
-      {/* ── Mobile Responsive Document Cards (< 768px) ── */}
-      <div className="block md:hidden space-y-3">
+      {/* ── Mobile Responsive Document Cards (< 768px) with Bottom Clearance ── */}
+      <div className="block md:hidden space-y-3 pb-36">
         {loading ? (
           <div className="p-8 text-center text-slate-400 font-semibold text-xs bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
             Loading documents...
@@ -746,25 +746,31 @@ startxref
               className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm space-y-3 cursor-pointer active:scale-[0.99] transition-transform"
             >
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-[#8C4BFF] flex items-center justify-center flex-shrink-0">
                     <FileTextOutlined style={{ fontSize: 18 }} />
                   </div>
-                  <div>
-                    <h4 className="font-extrabold text-sm text-slate-800 dark:text-white m-0 leading-tight">{doc.name}</h4>
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mt-0.5">{doc.patientName || 'Unlinked'}</span>
+                  <div className="min-w-0">
+                    <h4 className="font-extrabold text-sm text-slate-800 dark:text-white m-0 leading-tight truncate">{doc.name}</h4>
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 block mt-0.5 truncate">{doc.patientName || 'Unlinked'}</span>
                   </div>
                 </div>
-                <Tag color={doc.status === 'Active' ? 'success' : doc.status === 'Sent' ? 'processing' : 'default'} className="rounded-lg border-none uppercase font-extrabold text-[9px] m-0">
+                <Tag color={doc.status === 'Active' ? 'success' : doc.status === 'Sent' ? 'processing' : 'default'} className="rounded-lg border-none uppercase font-extrabold text-[9px] m-0 flex-shrink-0">
                   {doc.status || 'Active'}
                 </Tag>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div>
-                  <span className="font-semibold">{doc.date}</span> &bull; <Tag color="purple" className="rounded-md border-none uppercase font-bold text-[8px] m-0">{doc.type || 'General'}</Tag>
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-medium text-[11px]">
+                    {doc.date && dayjs(doc.date).isValid() ? dayjs(doc.date).format('DD MMM YYYY') : (doc.date || '—')}
+                  </span>
+                  <Tag color="purple" className="rounded-md border-none uppercase font-bold text-[8px] m-0 max-w-[150px] truncate" title={doc.type || 'General'}>
+                    {doc.type || 'General'}
+                  </Tag>
                 </div>
-                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                
+                <div className="flex items-center justify-end gap-1.5 pt-1" onClick={(e) => e.stopPropagation()}>
                   <Button
                     size="small"
                     icon={<EyeOutlined />}
@@ -772,8 +778,11 @@ startxref
                       setSelectedDoc(doc)
                       setViewVisible(true)
                     }}
-                    className="rounded-lg font-bold text-xs text-[#8C4BFF] border-purple-200"
-                  />
+                    aria-label="View document"
+                    className="rounded-lg font-bold text-xs text-[#8C4BFF] border-purple-200 h-8 px-2.5 flex items-center gap-1"
+                  >
+                    <span>View</span>
+                  </Button>
                   <Button
                     size="small"
                     icon={<InfoCircleOutlined />}
@@ -781,13 +790,15 @@ startxref
                       setSelectedDoc(doc)
                       setDetailVisible(true)
                     }}
-                    className="rounded-lg font-bold text-xs text-slate-600"
+                    aria-label="Document info"
+                    className="rounded-lg font-bold text-xs text-slate-600 h-8 px-2.5"
                   />
                   <Button
                     size="small"
                     icon={<DownloadOutlined />}
                     onClick={() => handleDownload(doc)}
-                    className="rounded-lg font-bold text-xs text-emerald-600 border-emerald-200"
+                    aria-label="Download document"
+                    className="rounded-lg font-bold text-xs text-emerald-600 border-emerald-200 h-8 px-2.5"
                   />
                 </div>
               </div>

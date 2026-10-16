@@ -10,7 +10,7 @@ import { isPractitionerAvailable } from '../../../utils/availabilityHelper'
 
 const { Option } = Select
 
-export default function NewScheduleModal({ open, onCancel, defaultTimeSlot }) {
+export default function NewScheduleModal({ open, onCancel, defaultTimeSlot, activePractitionerId, onSuccess }) {
   const store = useClinicStore()
   const [form] = Form.useForm()
   const [selectedRepeat, setSelectedRepeat] = useState('None')
@@ -130,51 +130,51 @@ export default function NewScheduleModal({ open, onCancel, defaultTimeSlot }) {
     const uEmail = (parsedUser?.email || (typeof window !== 'undefined' ? localStorage.getItem('userEmail') || '' : '')).toLowerCase().trim()
     const uName = (parsedUser?.name || (typeof window !== 'undefined' ? localStorage.getItem('userName') || '' : '')).toLowerCase().trim()
 
+    // Only match loggedInPrac if current user actually matches a practitioner record
     const loggedInPrac = (store.practitioners || []).find(p => p.userId === uId || p.id === uId) ||
                          (store.practitioners || []).find(p => p.email && p.email.toLowerCase().trim() === uEmail) ||
                          (store.practitioners || []).find(p => p.name && p.name.toLowerCase().replace(/dr\.?\s*/g, '').includes(uName.replace(/dr\.?\s*/g, ''))) ||
-                         store.practitioners[0]
+                         null
 
-    const defaultPracId = defaultTimeSlot?.practitionerId || loggedInPrac?.id || store.practitioners[0]?.id
+    // Avoid blindly defaulting to store.practitioners[0] for admin users
+    const defaultPracId = defaultTimeSlot?.practitionerId || activePractitionerId || loggedInPrac?.id || (store.practitioners?.length === 1 ? store.practitioners[0]?.id : undefined)
 
     if (open) {
-      if (defaultTimeSlot) {
-        form.setFieldsValue({
-          patientId: defaultTimeSlot.patientId || undefined,
-          date: dayjs(defaultTimeSlot.date),
-          time: dayjs(`2026-06-09T${defaultTimeSlot.time}`),
-          endTime: dayjs(`2026-06-09T${defaultTimeSlot.time}`).add(1, 'hour'),
-          practitionerId: defaultPracId,
-          serviceId: defaultTimeSlot.serviceId || undefined,
-          repeat: 'None',
-          customRepeatText: '',
-          providerTravel: false,
-          nonLabourCosts: false,
-          doNotInvoice: false,
-          location: defaultTimeSlot.location || undefined,
-          room: defaultTimeSlot.room || undefined,
-          fundingType: defaultTimeSlot.fundingType || 'Private',
-        })
-        setSelectedRepeat('None')
-      } else {
-        form.setFieldsValue({
-          date: dayjs(),
-          time: dayjs('09:00', 'HH:mm'),
-          endTime: dayjs('10:00', 'HH:mm'),
-          practitionerId: defaultPracId,
-          repeat: 'None',
-          customRepeatText: '',
-          providerTravel: false,
-          nonLabourCosts: false,
-          doNotInvoice: false,
-          location: undefined,
-          room: undefined,
-          fundingType: 'Private',
-        })
-        setSelectedRepeat('None')
-      }
+      form.resetFields()
+      setSelectedRepeat('None')
+      setExtraNonLabourCosts([])
+
+      const slotDate = defaultTimeSlot?.date ? dayjs(defaultTimeSlot.date) : dayjs()
+      const slotDateStr = slotDate.format('YYYY-MM-DD')
+      const slotTime = defaultTimeSlot?.time ? dayjs(`${slotDateStr}T${defaultTimeSlot.time}`) : dayjs(`${slotDateStr}T09:00`)
+      const serviceObj = defaultTimeSlot?.serviceId ? (store.services || []).find(s => s.id === defaultTimeSlot.serviceId) : null
+      const configuredFee = serviceObj ? (serviceObj.price !== undefined && serviceObj.price !== null ? serviceObj.price : (serviceObj.fee !== undefined ? serviceObj.fee : undefined)) : undefined
+
+      form.setFieldsValue({
+        patientId: defaultTimeSlot?.patientId || undefined,
+        date: slotDate,
+        time: slotTime,
+        endTime: slotTime.add(1, 'hour'),
+        practitionerId: defaultPracId,
+        serviceId: defaultTimeSlot?.serviceId || undefined,
+        fee: configuredFee,
+        repeat: 'None',
+        customRepeatText: '',
+        isRepeatEnabled: false,
+        providerTravel: false,
+        nonLabourCosts: false,
+        doNotInvoice: false,
+        location: defaultTimeSlot?.location || 'Clinic',
+        room: defaultTimeSlot?.room || 'Room A',
+        fundingType: defaultTimeSlot?.fundingType || 'Private',
+        caseName: '',
+        diagnosis: '',
+        bodyPart: '',
+        notes: '',
+        ndisLineItem: serviceObj?.ndisCode || serviceObj?.code || '',
+      })
     }
-  }, [open, defaultTimeSlot, store.practitioners])
+  }, [open, defaultTimeSlot, activePractitionerId, store.practitioners, store.services])
 
   const onFinish = async (values) => {
     const patientObj = (store.patients || []).find(p => p.id === values.patientId)
@@ -236,8 +236,8 @@ export default function NewScheduleModal({ open, onCancel, defaultTimeSlot }) {
         nonLabourCosts: Boolean(values.nonLabourCosts),
         providerTravelDesc: values.providerTravelDesc || 'Provider Travel - Travel to participant location',
         providerTravelPricing: parseFloat(values.providerTravelPricing) || 193.99,
-        travelToMins: parseInt(values.travelToMins, 10) || 30,
-        travelBackMins: parseInt(values.travelBackMins, 10) || 0,
+        travelToMins: values.providerTravel ? (parseInt(values.travelToMins, 10) || 30) : 0,
+        travelBackMins: values.providerTravel ? (parseInt(values.travelBackMins, 10) || 0) : 0,
         nonLabourDesc: values.nonLabourDesc || 'Provider Travel - Non-Labour Costs (Kilometres / Tolls)',
         nonLabourQty: parseFloat(values.nonLabourQty) || 25,
         nonLabourPricing: parseFloat(values.nonLabourPricing) || 0.99
@@ -254,7 +254,14 @@ export default function NewScheduleModal({ open, onCancel, defaultTimeSlot }) {
       const pName = savedAppt?.patientName || newAppt.patientName || 'Client'
       toast.success(`Appointment scheduled & saved for ${pName}!`)
       form.resetFields()
-      onCancel()
+      setSelectedRepeat('None')
+      setExtraNonLabourCosts([])
+      if (typeof onSuccess === 'function') {
+        onSuccess(savedAppt || newAppt)
+      }
+      if (typeof onCancel === 'function') {
+        onCancel()
+      }
     } catch (err) {
       if (err.response?.data?.isUnavailable) {
         Modal.warning({
@@ -271,13 +278,22 @@ export default function NewScheduleModal({ open, onCancel, defaultTimeSlot }) {
     }
   }
 
+  const handleModalCancel = () => {
+    form.resetFields()
+    setSelectedRepeat('None')
+    setExtraNonLabourCosts([])
+    if (typeof onCancel === 'function') {
+      onCancel()
+    }
+  }
+
   return (
     <Modal
       title={<span className="font-extrabold text-base text-slate-800 dark:text-slate-200">Create Appointment</span>}
       open={open}
-      onCancel={onCancel}
+      onCancel={handleModalCancel}
       footer={null}
-      destroyOnHidden
+      destroyOnClose
       centered
       width={720}
       style={{ top: 20, maxWidth: '95vw' }}
@@ -792,7 +808,7 @@ export default function NewScheduleModal({ open, onCancel, defaultTimeSlot }) {
           </Form.Item>
           
           <Space>
-            <Button onClick={onCancel} className="rounded-xl">Cancel</Button>
+            <Button onClick={handleModalCancel} className="rounded-xl">Cancel</Button>
             <Button type="primary" htmlType="submit" style={{ backgroundColor: '#8C4BFF', color: 'white', border: 'none' }} className="rounded-xl font-bold px-6">
               Schedule Appointment
             </Button>

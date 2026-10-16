@@ -665,6 +665,12 @@ const formatCustomDate = (dayObj) => {
   return `${ddd}, ${d}${suffix} ${MMM}`;
 }
 
+// Calculate the Monday starting the week (Monday–Sunday standard: Sunday 11 Oct -> Monday 5 Oct)
+const getMondayOfWeek = (d) => {
+  if (!d) return dayjs().startOf('day')
+  return d.day() === 0 ? d.subtract(6, 'day').startOf('day') : d.day(1).startOf('day')
+}
+
 export default function ClinicAdminCalendarPage() {
   const store = useClinicStore()
   const navigate = useNavigate()
@@ -675,7 +681,7 @@ export default function ClinicAdminCalendarPage() {
   }
 
   // Base configurations states
-  const [weekStart, setWeekStart] = useState(() => dayjs().startOf('week'))
+  const [weekStart, setWeekStart] = useState(() => getMondayOfWeek(dayjs()))
   const [viewMode, setViewMode] = useState('7 Days')
   const [slotMode, setSlotMode] = useState('60-minute slots')
   const [searchVal, setSearchVal] = useState('')
@@ -716,9 +722,9 @@ export default function ClinicAdminCalendarPage() {
     else setWeekStart(d => d.add(7, 'day'))
   }
   const goToday = () => {
-    const t = dayjs().startOf('week')
-    setWeekStart(t)
-    setSelectedActiveDay(dayjs())
+    const t = dayjs()
+    setWeekStart(getMondayOfWeek(t))
+    setSelectedActiveDay(t)
   }
 
   const intervalMin = slotMode === '15-minute slots' ? 15 : slotMode === '30-minute slots' ? 30 : 60
@@ -741,22 +747,19 @@ export default function ClinicAdminCalendarPage() {
   // Get active days of calendar depending on current view mode
   const visibleDays = useMemo(() => {
     let days = []
+    const start = getMondayOfWeek(weekStart)
     if (viewMode === '1 Day') {
       days = [weekStart]
     } else if (viewMode === '5 Days') {
-      const start = weekStart.day(1) // Monday
       days = Array.from({ length: 5 }, (_, i) => start.add(i, 'day'))
     } else if (viewMode === '7 Days') {
-      const start = weekStart.day(1) // Monday
       days = Array.from({ length: 7 }, (_, i) => start.add(i, 'day'))
     } else if (viewMode === '14 Days') {
-      const start = weekStart.day(1) // Monday
       days = Array.from({ length: 14 }, (_, i) => start.add(i, 'day'))
     } else if (viewMode === '30 Days') {
-      const start = weekStart.startOf('month')
-      days = Array.from({ length: 30 }, (_, i) => start.add(i, 'day'))
+      const monthStart = weekStart.startOf('month')
+      days = Array.from({ length: 30 }, (_, i) => monthStart.add(i, 'day'))
     } else {
-      const start = weekStart.day(1)
       days = Array.from({ length: 7 }, (_, i) => start.add(i, 'day'))
     }
 
@@ -860,7 +863,7 @@ export default function ClinicAdminCalendarPage() {
     }
 
     dayAppts.forEach(appt => {
-      if (!appt) return
+      if (!appt || appt.status === 'Cancelled') return
       let travelObj = appt?.travel || appt?.travelDetails || {}
       if (typeof travelObj === 'string') {
         try { travelObj = JSON.parse(travelObj) } catch (e) { travelObj = {} }
@@ -871,9 +874,7 @@ export default function ClinicAdminCalendarPage() {
       const isTravelEnabled = travelObj?.providerTravel === true ||
         travelObj?.providerTravel === 'true' ||
         travelObj?.hasTravel === true ||
-        travelObj?.hasTravel === 'true' ||
-        travelToMins > 0 ||
-        travelBackMins > 0
+        travelObj?.hasTravel === 'true'
 
       if (!isTravelEnabled) return
 
@@ -1020,6 +1021,54 @@ export default function ClinicAdminCalendarPage() {
     }
   }
 
+  // Handle visibility and date navigation when a new appointment is created
+  const handleAppointmentCreated = (saved) => {
+    if (!saved) return
+    const appt = Array.isArray(saved) ? saved[0] : saved
+    if (!appt) return
+
+    let targetPracId = appt.practitionerId
+    if (!targetPracId && appt.practitionerName) {
+      const match = (store.practitioners || []).find(p =>
+        p.name && appt.practitionerName &&
+        p.name.toLowerCase().trim() === appt.practitionerName.toLowerCase().trim()
+      )
+      if (match) targetPracId = match.id
+    }
+
+    // 1. Ensure the newly created appointment's practitioner is visible in calendar
+    if (targetPracId) {
+      setSelectedPractitioners(prev => {
+        if (!prev.includes(targetPracId)) {
+          const next = [...prev, targetPracId]
+          try {
+            localStorage.setItem('zealth_calendar_selected_practitioners', JSON.stringify(next))
+          } catch {}
+          return next
+        }
+        return prev
+      })
+    }
+
+    // 2. Navigate to the saved appointment date if outside current view range
+    if (appt.date) {
+      const apptDate = dayjs(appt.date)
+      if (apptDate.isValid()) {
+        const isCurrentlyVisible = visibleDays.some(d => d.format('YYYY-MM-DD') === appt.date)
+        if (!isCurrentlyVisible) {
+          const apptMonday = getMondayOfWeek(apptDate)
+          setWeekStart(apptMonday)
+        }
+        setSelectedActiveDay(apptDate)
+      }
+    }
+
+    // 3. Refresh appointments from backend to guarantee complete sync
+    if (typeof store.fetchAppointments === 'function') {
+      store.fetchAppointments()
+    }
+  }
+
   const activePractitionerObjects = useMemo(() => {
     const list = store.practitioners?.filter(p => selectedPractitioners.includes(p.id)) || []
     return list.length > 0 ? list : (store.practitioners || [])
@@ -1108,12 +1157,16 @@ export default function ClinicAdminCalendarPage() {
           <div className="flex items-center gap-1">
             <button
               onClick={prevWeek}
+              aria-label="Previous period"
+              title="Previous period"
               className="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 border border-slate-200 hover:border-[#8C4BFF] hover:text-[#8C4BFF] transition-colors bg-white dark:bg-slate-800 dark:border-slate-700"
             >
               <LeftOutlined style={{ fontSize: 10 }} />
             </button>
             <button
               onClick={nextWeek}
+              aria-label="Next period"
+              title="Next period"
               className="w-7 h-7 rounded-full flex items-center justify-center text-slate-500 border border-slate-200 hover:border-[#8C4BFF] hover:text-[#8C4BFF] transition-colors bg-white dark:bg-slate-800 dark:border-slate-700"
             >
               <RightOutlined style={{ fontSize: 10 }} />
@@ -1261,7 +1314,7 @@ export default function ClinicAdminCalendarPage() {
                 fullscreen={false}
                 value={weekStart}
                 onChange={(val) => {
-                  setWeekStart(val)
+                  setWeekStart(getMondayOfWeek(val))
                   setSelectedActiveDay(val)
                 }}
                 headerRender={({ value, onChange }) => {
@@ -1572,22 +1625,28 @@ export default function ClinicAdminCalendarPage() {
         </div>
       </div>
 
+
       {/* Floating Add Button */}
       <button
         onClick={() => {
           const params = new URLSearchParams(location.search);
           const patientIdParam = params.get('patientId');
           const preselectedPatient = patientIdParam ? store.patients?.find(p => p.id === patientIdParam) : null;
-          setDefaultSlot(preselectedPatient || patientIdParam ? {
-            date: dayjs().format('YYYY-MM-DD'),
+          const singlePracId = selectedPractitioners && selectedPractitioners.length === 1 ? selectedPractitioners[0] : undefined;
+          const targetDate = selectedActiveDay ? selectedActiveDay.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+
+          setDefaultSlot({
+            date: targetDate,
             time: '09:00',
-            patientId: preselectedPatient ? preselectedPatient.id : patientIdParam,
+            practitionerId: singlePracId,
+            patientId: preselectedPatient ? preselectedPatient.id : (patientIdParam || undefined),
             patientName: preselectedPatient ? (preselectedPatient.fullName || preselectedPatient.name) : undefined
-          } : null)
-          setCreateModalVisible(true)
+          });
+          setCreateModalVisible(true);
         }}
         className="fixed bottom-8 right-8 w-14 h-14 bg-[#8C4BFF] hover:bg-[#7b41e3] text-white rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-105 z-30"
         title="Add Appointment"
+        aria-label="Add Appointment"
       >
         <PlusOutlined style={{ fontSize: 24 }} />
       </button>
@@ -1595,8 +1654,17 @@ export default function ClinicAdminCalendarPage() {
       {/* Create appointment form modal */}
       <AppointmentModal
         open={createModalVisible}
-        onCancel={() => setCreateModalVisible(false)}
+        onCancel={() => {
+          setCreateModalVisible(false)
+          setDefaultSlot(null)
+        }}
+        onSuccess={(saved) => {
+          setCreateModalVisible(false)
+          setDefaultSlot(null)
+          handleAppointmentCreated(saved)
+        }}
         defaultTimeSlot={defaultSlot}
+        activePractitionerId={selectedPractitioners?.length === 1 ? selectedPractitioners[0] : undefined}
       />
 
       {/* Item Details popup modal */}

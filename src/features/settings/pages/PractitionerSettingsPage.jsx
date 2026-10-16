@@ -1170,7 +1170,7 @@ export default function PractitionerSettingsPage() {
                     children: (
                       <div className="py-6 space-y-6">
                         <div className="flex justify-between items-center mb-4">
-                          <h3 className="font-bold text-lg text-slate-800 dark:text-white m-0">Connected Apps (Live DB)</h3>
+                          <h3 className="font-bold text-lg text-slate-800 dark:text-white m-0">Connected Apps</h3>
                           {store.integrationsLoading && <span className="text-xs text-slate-400 font-semibold">Syncing with database...</span>}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

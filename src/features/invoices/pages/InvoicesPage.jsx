@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Table, Button, Tag, Input, Select, DatePicker, Modal, Space, Form, InputNumber, Tooltip } from 'antd'
 import {
   SearchOutlined,
@@ -12,7 +13,8 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   EyeOutlined,
-  PrinterOutlined
+  PrinterOutlined,
+  CreditCardOutlined
 } from '@ant-design/icons'
 import { useClinicStore } from '../../../store/clinicStore'
 import { toast } from 'react-hot-toast'
@@ -21,7 +23,45 @@ import { getInvoices, createInvoice, updateInvoice, deleteInvoice, getPatients, 
 
 const { Option } = Select
 
+// Standard unified invoice payment status calculation
+export const deriveInvoicePaymentStatus = (invoice) => {
+  if (!invoice) return { label: 'Unpaid', key: 'unpaid', color: 'default', bg: '#EDE9FE', border: '#C4B5FD', text: '#5B21B6' }
+  const today = dayjs().startOf('day')
+  const amt = parseFloat(invoice.amount) || 0
+  const due = invoice.due !== undefined && invoice.due !== null ? parseFloat(invoice.due) : amt
+  const s = (invoice.status || '').toLowerCase()
+  const ps = (invoice.paymentStatus || '').toLowerCase()
+
+  const isCancelled = s === 'cancelled' || s === 'cancel'
+  if (isCancelled) {
+    return { label: 'Cancelled', key: 'cancelled', color: 'error', bg: '#FEE2E2', border: '#FCA5A5', text: '#991B1B' }
+  }
+
+  const isPaid = s === 'paid' || s === 'completed' || (due === 0 && amt > 0)
+  if (isPaid) {
+    return { label: 'Paid', key: 'paid', color: 'success', bg: '#DCFCE7', border: '#86EFAC', text: '#15803D' }
+  }
+
+  const isDraft = s === 'draft'
+  if (isDraft) {
+    return { label: 'Draft', key: 'draft', color: 'default', bg: '#F1F5F9', border: '#CBD5E1', text: '#475569' }
+  }
+
+  const isPartiallyPaid = ps === 'partially paid' || (due > 0 && due < amt)
+  if (isPartiallyPaid) {
+    return { label: 'Partially Paid', key: 'partially_paid', color: 'warning', bg: '#FEF3C7', border: '#FCD34D', text: '#92400E' }
+  }
+
+  const isOverdue = ps === 'overdue' || (due > 0 && invoice.dueDate && dayjs(invoice.dueDate).isBefore(today))
+  if (isOverdue) {
+    return { label: 'Overdue', key: 'overdue', color: 'error', bg: '#FEE2E2', border: '#FCA5A5', text: '#991B1B' }
+  }
+
+  return { label: 'Issued / Unpaid', key: 'unpaid', color: 'purple', bg: '#EDE9FE', border: '#C4B5FD', text: '#5B21B6' }
+}
+
 export default function InvoicesPage() {
+  const navigate = useNavigate()
   const store = useClinicStore()
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -847,7 +887,7 @@ export default function InvoicesPage() {
             <span className="font-bold text-slate-700 dark:text-slate-300">${total.toFixed(2)}</span>
             {gst > 0 ? (
               <span className="block text-[10px] font-semibold text-purple-600 dark:text-purple-400">
-                +${gst.toFixed(2)} GST
+                (incl. ${gst.toFixed(2)} GST)
               </span>
             ) : (
               <span className="block text-[9px] text-slate-400 dark:text-slate-500">
@@ -905,38 +945,18 @@ export default function InvoicesPage() {
       title: <span className="font-extrabold text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">Payment Status</span>,
       dataIndex: 'status',
       key: 'status',
-      render: (status, record) => {
-        const today = dayjs().startOf('day')
-        const amt = parseFloat(record.amount) || 0
+      render: (_, record) => {
+        const st = deriveInvoicePaymentStatus(record)
         const due = parseFloat(record.due) || 0
-        const s = (status || '').toLowerCase()
-        const ps = (record.paymentStatus || '').toLowerCase()
-
-        const isPaid = s === 'paid' || s === 'completed' || due === 0
-        const isDraft = s === 'draft'
-        const isCancelled = s === 'cancelled' || s === 'cancel'
-        const isPartiallyPaid = !isPaid && !isDraft && !isCancelled && (ps === 'partially paid' || (due > 0 && due < amt))
-        const isOverdue = !isPaid && !isDraft && !isCancelled && !isPartiallyPaid && (
-          ps === 'overdue' || (due > 0 && record.dueDate && dayjs(record.dueDate).isBefore(today))
-        )
-
-        let bg, label, border
-        if (isCancelled) { bg = '#FEE2E2'; label = 'Cancelled'; border = '#FCA5A5'; color: '#991B1B' }
-        else if (isPaid) { bg = '#DCFCE7'; label = 'Paid'; border = '#86EFAC' }
-        else if (isOverdue) { bg = '#FEE2E2'; label = 'Overdue'; border = '#FCA5A5' }
-        else if (isPartiallyPaid) { bg = '#FEF3C7'; label = 'Partially Paid'; border = '#FCD34D' }
-        else if (isDraft) { bg = '#F1F5F9'; label = 'Draft'; border = '#CBD5E1' }
-        else { bg = '#EDE9FE'; label = 'Issued'; border = '#C4B5FD' }
-
-        const textColor = isCancelled ? '#991B1B' : isPaid ? '#15803D' : isOverdue ? '#991B1B' : isPartiallyPaid ? '#92400E' : isDraft ? '#475569' : '#5B21B6'
+        const amt = parseFloat(record.amount) || 0
 
         return (
-          <Tooltip title={isOverdue ? `Due date passed — $${due.toFixed(2)} still outstanding` : isPartiallyPaid ? `Partial payment received — $${due.toFixed(2)} remaining of $${amt.toFixed(2)}` : null}>
+          <Tooltip title={st.key === 'overdue' ? `Due date passed — $${due.toFixed(2)} still outstanding` : st.key === 'partially_paid' ? `Partial payment received — $${due.toFixed(2)} remaining of $${amt.toFixed(2)}` : null}>
             <span
               className="inline-flex items-center justify-center rounded-lg font-extrabold text-[10px] uppercase tracking-wider"
-              style={{ backgroundColor: bg, border: `1px solid ${border}`, color: textColor, padding: '3px 10px' }}
+              style={{ backgroundColor: st.bg, border: `1px solid ${st.border}`, color: st.text, padding: '3px 10px' }}
             >
-              {label}
+              {st.label}
             </span>
           </Tooltip>
         )
@@ -974,9 +994,19 @@ export default function InvoicesPage() {
       key: 'actions',
       align: 'right',
       fixed: 'right',
-      width: 120,
+      width: 145,
       render: (_, record) => (
         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <Tooltip title="Record Payment">
+            <Button
+              size="small"
+              icon={<CreditCardOutlined />}
+              aria-label="Record Payment"
+              onClick={() => navigate('/clinic-admin/payments-centre', { state: { preselectInvoice: record } })}
+              className="rounded-lg font-bold text-xs text-emerald-600 border-emerald-200 hover:border-emerald-400"
+            />
+          </Tooltip>
+
           <Tooltip title="Preview Invoice PDF">
             <Button
               size="small"
@@ -1445,21 +1475,17 @@ export default function InvoicesPage() {
           </div>
 
           <div className="grid grid-cols-4 gap-4">
-            <Form.Item name="amount" label={<span className="text-xs font-semibold text-slate-500">Total ($ AUD)</span>} rules={[{ required: true }]}>
-              <InputNumber min={0} step={0.01} prefix="$" className="w-full rounded-xl h-10 font-black text-emerald-600 flex items-center" />
+            <Form.Item name="amount" label={<span className="text-xs font-semibold text-slate-500">Total ($ AUD) — Auto-calculated</span>} rules={[{ required: true }]}>
+              <InputNumber min={0} step={0.01} prefix="$" disabled className="w-full rounded-xl h-10 font-black text-emerald-600 flex items-center bg-slate-50 dark:bg-slate-800" />
             </Form.Item>
 
-            <Form.Item name="due" label={<span className="text-xs font-semibold text-slate-500">Balance Due ($ AUD)</span>}>
+            <Form.Item name="due" label={<span className="text-xs font-semibold text-slate-500">Balance Due ($ AUD) — Managed by Payments</span>}>
               <InputNumber 
                 min={0} 
                 step={0.01} 
                 prefix="$" 
-                className="w-full rounded-xl h-10 font-black text-rose-500 flex items-center" 
-                onChange={(val) => {
-                  if (val === 0) {
-                    editForm.setFieldsValue({ status: 'Paid' })
-                  }
-                }}
+                disabled
+                className="w-full rounded-xl h-10 font-black text-rose-500 flex items-center bg-slate-50 dark:bg-slate-800" 
               />
             </Form.Item>
 
@@ -1488,9 +1514,8 @@ export default function InvoicesPage() {
                   }
                 }}
               >
-                <Option value="Processing">Processing / Unpaid</Option>
-                <Option value="Draft">Draft</Option>
-                <Option value="Sent">Sent / Pending</Option>
+                <Option value="Processing">Issued / Unpaid</Option>
+                <Option value="Partially Paid">Partially Paid</Option>
                 <Option value="Paid">Paid (Full)</Option>
                 <Option value="Cancelled">Cancelled</Option>
               </Select>
@@ -1549,9 +1574,14 @@ export default function InvoicesPage() {
                 Invoice PDF Preview: {previewInvoice ? getInvoiceDisplayNumber(previewInvoice) : ''}
               </span>
             </div>
-            <Tag color={previewInvoice?.status === 'Paid' ? 'success' : 'warning'} className="font-extrabold uppercase rounded-lg border-none">
-              {previewInvoice?.status || 'Processing'}
-            </Tag>
+            {(() => {
+              const st = deriveInvoicePaymentStatus(previewInvoice)
+              return (
+                <Tag color={st.color} className="font-extrabold uppercase rounded-lg border-none">
+                  {st.label}
+                </Tag>
+              )
+            })()}
           </div>
         }
         open={previewVisible}
@@ -1697,8 +1727,11 @@ export default function InvoicesPage() {
                       }
                     }
                     const previewItemsSum = previewLines.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.rate) * (parseFloat(it.quantity) || 1)) || 0), 0)
-                    const previewReconciled = previewItemsSum > 0 ? previewItemsSum : previewBaseAmt
-                    const hasReconcileGap = Math.abs(previewReconciled - previewBaseAmt) > 0.01 && previewBaseAmt > 0
+                    const previewTaxable = previewLines.filter(it => it.taxRate === 'GST on Income' || (!it.taxRate && (it.taxable === true || it.taxable === 'true'))).reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.rate) * (parseFloat(it.quantity) || 1)) || 0), 0)
+                    const previewGst = parseFloat((previewTaxable * 0.1).toFixed(2))
+                    const previewGross = parseFloat((previewItemsSum + previewGst).toFixed(2))
+                    const previewReconciled = previewGross > 0 ? previewGross : previewBaseAmt
+                    const hasReconcileGap = Math.abs(previewReconciled - previewBaseAmt) > 0.05 && Math.abs(previewItemsSum - previewBaseAmt) > 0.05 && previewBaseAmt > 0
                     return previewLines.map((it, idx) => {
                       const effectiveTaxRate = it.taxRate || (it.taxable === true || it.taxable === 'true' ? 'GST on Income' : 'GST Free Income')
                       return (
@@ -1801,7 +1834,7 @@ export default function InvoicesPage() {
               <div className="font-bold">
                 EFT Remittance: {store.clinicDetails?.featureFlags?.bankName || 'Bank'}{store.clinicDetails?.featureFlags?.bsb ? ` • BSB: ${store.clinicDetails.featureFlags.bsb}` : ''}{store.clinicDetails?.featureFlags?.accountNumber ? ` • Acc: ${store.clinicDetails.featureFlags.accountNumber}` : ''}
               </div>
-              <div className="text-slate-500 dark:text-slate-400">Please quote {getInvoiceDisplayNumber(previewInvoice)} in transfer description for instant automated reconciliation.</div>
+              <div className="text-slate-500 dark:text-slate-400">Please quote {getInvoiceDisplayNumber(previewInvoice)} in electronic transfer description on all remittances.</div>
             </div>
           </div>
         )}
