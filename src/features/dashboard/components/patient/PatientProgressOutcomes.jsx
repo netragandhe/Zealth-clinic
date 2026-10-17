@@ -37,8 +37,8 @@ export default function PatientProgressOutcomes() {
     mobilityExpansion: '+56% ROM expansion',
     strengthRating: '92% Rating',
     strengthIncrease: '+60% isometric loading capacity',
-    complianceCompleted: '88% Completed',
-    complianceStreak: '7-day active streak'
+    complianceCompleted: '0% Completed',
+    complianceStreak: '0-day active streak'
   })
   const [outcomesData, setOutcomesData] = useState([])
   const [outcomeMeasuresList, setOutcomeMeasuresList] = useState([])
@@ -161,8 +161,8 @@ export default function PatientProgressOutcomes() {
           },
           {
             title: 'Vocal Exercise Streak',
-            value: baseMetrics.complianceCompleted || '100% Completed',
-            change: baseMetrics.complianceStreak || '12-day vocal exercise streak',
+            value: baseMetrics.complianceCompleted || '0% Completed',
+            change: baseMetrics.complianceStreak || 'Vocal exercise routine',
             icon: <RiseOutlined style={{ fontSize: 16 }} />,
             colorClass: 'bg-blue-50 dark:bg-blue-950/20 text-blue-500'
           }
@@ -192,7 +192,7 @@ export default function PatientProgressOutcomes() {
           },
           {
             title: 'Adaptive Routine Adherence',
-            value: baseMetrics.complianceCompleted || '90% Completed',
+            value: baseMetrics.complianceCompleted || '0% Completed',
             change: baseMetrics.complianceStreak || 'Daily independent living routine',
             icon: <RiseOutlined style={{ fontSize: 16 }} />,
             colorClass: 'bg-blue-50 dark:bg-blue-950/20 text-blue-500'
@@ -223,8 +223,8 @@ export default function PatientProgressOutcomes() {
           },
           {
             title: 'Conditioning Target Adherence',
-            value: baseMetrics.complianceCompleted || '94% Completed',
-            change: baseMetrics.complianceStreak || 'Target HR training zones met',
+            value: baseMetrics.complianceCompleted || '0% Completed',
+            change: baseMetrics.complianceStreak || 'Target conditioning routine',
             icon: <RiseOutlined style={{ fontSize: 16 }} />,
             colorClass: 'bg-blue-50 dark:bg-blue-950/20 text-blue-500'
           }
@@ -254,8 +254,8 @@ export default function PatientProgressOutcomes() {
           },
           {
             title: 'Orthotic & Offloading Compliance',
-            value: baseMetrics.complianceCompleted || '100% Worn',
-            change: baseMetrics.complianceStreak || 'Full daily offloading protocol',
+            value: baseMetrics.complianceCompleted ? baseMetrics.complianceCompleted.replace('Completed', 'Worn') : '0% Worn',
+            change: baseMetrics.complianceStreak || 'Daily offloading protocol',
             icon: <RiseOutlined style={{ fontSize: 16 }} />,
             colorClass: 'bg-blue-50 dark:bg-blue-950/20 text-blue-500'
           }
@@ -286,8 +286,8 @@ export default function PatientProgressOutcomes() {
           },
           {
             title: 'Active Care Compliance',
-            value: baseMetrics.complianceCompleted || '88% Completed',
-            change: baseMetrics.complianceStreak || '7-day active streak',
+            value: baseMetrics.complianceCompleted || '0% Completed',
+            change: baseMetrics.complianceStreak || (baseMetrics.complianceCompleted && !baseMetrics.complianceCompleted.startsWith('0%') ? 'Active streak' : '0-day active streak'),
             icon: <RiseOutlined style={{ fontSize: 16 }} />,
             colorClass: 'bg-blue-50 dark:bg-blue-950/20 text-blue-500'
           }

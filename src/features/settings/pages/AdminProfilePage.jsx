@@ -73,18 +73,19 @@ export default function AdminProfilePage() {
           const userData = res.data
           const pData = userData.profileData || {}
 
-          const realName = userData.name || loggedUser?.name || 'Admin User'
+          const isPatientUser = isPatient || userData.role === 'PATIENT'
+          const realName = userData.name || userData.fullName || loggedUser?.name || (isPatientUser ? 'Patient' : 'Admin User')
           const realEmail = userData.email || loggedUser?.email || ''
           const realPhone = userData.phone || loggedUser?.phone || ''
-          const realRole = userData.role === 'SUPER_ADMIN' ? 'Super Admin' : (userData.role === 'CLINIC_ADMIN' ? 'Clinic Admin' : (userData.role || 'Clinic Admin'))
-          const realId = userData.displayId || userData.id || loggedUser?.id || 'ADM-000001'
+          const realRole = userData.role === 'SUPER_ADMIN' ? 'Super Admin' : (userData.role === 'CLINIC_ADMIN' ? 'Clinic Admin' : (userData.role === 'PATIENT' || isPatientUser ? 'Patient' : (userData.role || 'Admin')))
+          const realId = userData.displayId || userData.patientId || userData.id || loggedUser?.displayId || loggedUser?.id || (isPatientUser ? 'PAT-000001' : 'ADM-000001')
 
           setUserInfo({
             name: realName,
             role: realRole,
             id: realId,
-            username: realEmail ? realEmail.split('@')[0] : 'admin',
-            status: userData.status === 'ACTIVE' ? 'Active' : (userData.status || 'Active'),
+            username: realEmail ? realEmail.split('@')[0] : (isPatientUser ? 'patient' : 'admin'),
+            status: userData.status === 'ACTIVE' || userData.status === 'active' ? 'Active' : (userData.status || 'Active'),
             avatar: userData.avatarUrl || null
           })
 

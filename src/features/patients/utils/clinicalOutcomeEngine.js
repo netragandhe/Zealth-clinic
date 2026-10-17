@@ -97,7 +97,7 @@ export function calculateGoalAchievement(testName, baselineVal, latestVal, goalV
   const targetNum = goal !== null ? goal : defaultTarget
 
   if (base === null || latest === null) {
-    return { percent: 75, targetText: goalVal || `${targetNum}` }
+    return { percent: 0, targetText: goalVal || `${targetNum}` }
   }
 
   let percent = 0

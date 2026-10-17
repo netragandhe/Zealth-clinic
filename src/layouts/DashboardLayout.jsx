@@ -1077,9 +1077,12 @@ export default function DashboardLayout({ children }) {
     localStorage.removeItem('user')
     localStorage.removeItem('userName')
     localStorage.removeItem('userId')
+    localStorage.removeItem('userEmail')
     localStorage.removeItem('token')
     localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
     localStorage.removeItem('userRole')
+    if (typeof sessionStorage !== 'undefined') sessionStorage.clear()
     toast.success('Logged out successfully.')
     navigate('/login')
   }
@@ -1095,33 +1098,40 @@ export default function DashboardLayout({ children }) {
   }
 
   const renderProfileBlock = () => {
-    const authUserId = localStorage.getItem('userId') || '1' // fallback to '1' if not set
-    let displayName = 'Super Admin User'
-    let displayRole = 'Super Admin'
-    let avatarSrc = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
+    let storedUser = null
+    try {
+      const uStr = localStorage.getItem('user')
+      if (uStr) storedUser = JSON.parse(uStr)
+    } catch (e) {}
 
-    if (userRole === 'sales') {
-      displayName = 'Colin Edegbe'
+    const authUserId = storedUser?.id || localStorage.getItem('userId')
+    const effectiveRole = (userRole || localStorage.getItem('userRole') || storedUser?.role || 'clinic').toLowerCase()
+    const storedName = storedUser?.name || storedUser?.fullName || localStorage.getItem('userName')
+
+    let displayName = storedName || 'User'
+    let displayRole = 'Member'
+    let avatarSrc = storedUser?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
+
+    if (effectiveRole === 'patient') {
+      displayName = storedName || 'Patient'
+      displayRole = 'Patient'
+      avatarSrc = storedUser?.avatarUrl || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150'
+    } else if (effectiveRole === 'practitioner') {
+      displayName = storedName || 'Practitioner'
+      displayRole = store.simulatedSpecialty || storedUser?.specialty || 'Practitioner'
+      avatarSrc = storedUser?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'
+    } else if (effectiveRole === 'sales') {
+      displayName = storedName || 'Sales Executive'
       displayRole = 'Sales Executive'
-      avatarSrc = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'
-    } else if (userRole === 'practitioner' && store.practitioners) {
-      const p = store.practitioners.find(pr => pr.id === authUserId) || store.practitioners[0]
-      if (p) {
-        displayName = p.name
-        displayRole = store.simulatedSpecialty || p.specialty || 'Physiotherapist'
-        avatarSrc = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'
-      }
-    } else if (userRole === 'patient' && store.patients) {
-      const p = store.patients.find(pt => pt.id === authUserId) || store.patients[0]
-      if (p) {
-        displayName = p.name
-        displayRole = 'Patient'
-        avatarSrc = 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150'
-      }
-    } else if (userRole === 'clinic' || userRole === 'head_admin') {
-      displayName = 'Clinic Manager'
+      avatarSrc = storedUser?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150'
+    } else if (effectiveRole === 'clinic' || effectiveRole === 'clinic_admin') {
+      displayName = storedName || 'Clinic Manager'
       displayRole = 'Clinic Admin'
-      avatarSrc = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'
+      avatarSrc = storedUser?.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'
+    } else if (effectiveRole === 'head_admin' || effectiveRole === 'super_admin') {
+      displayName = storedName || 'Super Admin User'
+      displayRole = 'Super Admin'
+      avatarSrc = storedUser?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
     }
 
     return (

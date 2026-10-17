@@ -133,7 +133,7 @@ export default function PatientDashboard({ store, navigate }) {
   const primaryClinic = nextAppt?.branchName || primaryDocObj?.clinic || 'Not Assigned'
 
   const activePlans = dashboardData.treatmentPlans.filter(p => (p.status || 'Active').toLowerCase() === 'active')
-  const activePlanAdherence = computeActivePlanAdherence(dashboardData.treatmentPlans)
+  const activePlanAdherence = computeActivePlanAdherence(dashboardData.treatmentPlans, dashboardData.exercises)
   const plansSummaryText = activePlans.length > 0 ? activePlans.map(p => p.condition).filter(Boolean).join(' & ') : 'No active treatment plans'
 
   const doctorsCount = dashboardData.careTeam.length

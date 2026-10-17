@@ -18,6 +18,7 @@ export default function PatientFundingClaims() {
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false)
+  const [patientInvoices, setPatientInvoices] = useState([])
   const [form] = Form.useForm()
 
   const fetchFundingAndClaims = async () => {
@@ -38,18 +39,37 @@ export default function PatientFundingClaims() {
     }
   }
 
+  const fetchPatientInvoices = async () => {
+    try {
+      const res = await api.get('/api/patient/invoices')
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setPatientInvoices(res.data.data)
+      }
+    } catch (err) {
+      // non-blocking
+    }
+  }
+
   useEffect(() => {
     fetchFundingAndClaims()
+    fetchPatientInvoices()
   }, [searchTerm, fundingFilter])
 
   const handleOpenAddModal = () => {
     form.resetFields()
+    fetchPatientInvoices()
     setModalOpen(true)
   }
 
   const handleSaveClaim = async (values) => {
     try {
-      const res = await api.post('/api/patient/claims', values)
+      const selectedInv = patientInvoices.find(i => i.rawId === values.invoiceId || i.id === values.invoiceId)
+      const payload = {
+        ...values,
+        invoiceId: selectedInv ? (selectedInv.rawId || selectedInv.id) : values.invoiceId,
+        invoiceNumber: selectedInv ? (selectedInv.displayId || selectedInv.invoiceNumber || selectedInv.id) : undefined
+      }
+      const res = await api.post('/api/patient/claims', payload)
       if (res.data?.success) {
         toast.success('New claim transaction submitted!')
         fetchFundingAndClaims()
@@ -57,7 +77,7 @@ export default function PatientFundingClaims() {
       setModalOpen(false)
       form.resetFields()
     } catch (err) {
-      toast.error('Failed to submit claim transaction')
+      toast.error(err.response?.data?.message || 'Failed to submit claim transaction')
     }
   }
 
@@ -196,6 +216,20 @@ export default function PatientFundingClaims() {
                 )
               },
               {
+                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Linked Invoice</span>,
+                dataIndex: 'invoiceNumber',
+                render: (invNum, rec) => {
+                  const ref = invNum || rec.invoiceId || rec.invoice?.displayId || rec.invoice?.invoiceNumber
+                  return ref ? (
+                    <Tag color="cyan" className="rounded-full border-none font-mono text-[9px] font-bold px-2.5 py-0.5">
+                      {ref}
+                    </Tag>
+                  ) : (
+                    <span className="text-slate-400 text-xs italic">—</span>
+                  )
+                }
+              },
+              {
                 title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Account / Program</span>,
                 dataIndex: 'funding',
                 render: (f) => <Tag color="default" className="m-0 border-slate-200 dark:border-slate-800 rounded-full text-[9px] font-semibold">{f}</Tag>
@@ -242,6 +276,28 @@ export default function PatientFundingClaims() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleSaveClaim} className="mt-4">
+          <Form.Item name="invoiceId" label="Linked Clinic Invoice (Optional)">
+            <Select
+              allowClear
+              placeholder="Select an invoice to link to this claim"
+              className="rounded-lg"
+              onChange={(val) => {
+                const inv = patientInvoices.find(i => i.rawId === val || i.id === val)
+                if (inv) {
+                  form.setFieldsValue({
+                    service: inv.service || form.getFieldValue('service'),
+                    amount: form.getFieldValue('amount') || `$${Number(inv.amount || 0).toFixed(2)}`
+                  })
+                }
+              }}
+            >
+              {patientInvoices.map((inv) => (
+                <Option key={inv.rawId || inv.id} value={inv.rawId || inv.id}>
+                  {inv.displayId || inv.invoiceNumber || inv.id} — {inv.service} (${Number(inv.amount || 0).toFixed(2)})
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
           <Form.Item name="service" label="Clinic Care Service Name" rules={[{ required: true, message: 'Please enter service name' }]}>
             <Input placeholder="e.g. Physiotherapy Consultation" className="rounded-lg" />
           </Form.Item>

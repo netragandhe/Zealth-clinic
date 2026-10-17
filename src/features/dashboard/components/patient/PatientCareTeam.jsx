@@ -135,7 +135,7 @@ export default function PatientCareTeam() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5" style={{ marginTop: '24px' }}>
           {filteredPractitioners.map(prac => (
-            <div key={prac.name} className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
+            <div key={prac.id || prac.email || prac.name} className="p-4 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
               <div className="flex items-center gap-3">
                 <Avatar src={prac.avatarUrl || prac.avatar || null} size={54} className="flex-shrink-0" />
                 <div>

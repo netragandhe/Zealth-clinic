@@ -3,11 +3,17 @@ import { Card, Progress, Timeline, Tag, Input, Select, Button, Modal, Form, Spin
 import { FieldTimeOutlined, SafetyCertificateOutlined, TrophyOutlined, SearchOutlined, FilterOutlined, PlusOutlined, DeleteOutlined, EditOutlined, CheckCircleOutlined, CheckOutlined, PlayCircleOutlined, MedicineBoxOutlined, SmileOutlined, AppstoreOutlined } from '@ant-design/icons'
 import { toast } from 'react-hot-toast'
 import api from '../../../../api/axios'
-import { computeExerciseCompliancePercent } from '../../../../utils/progressUtils'
+import { computeExerciseCompliancePercent, computePlanOverallProgress } from '../../../../utils/progressUtils'
+import { useClinicStore } from '../../../../store/clinicStore'
+import { canManageClinicalGoals } from '../../../../utils/clinicalGoalUtils'
 
 const { Option } = Select
 
 export default function PatientTreatmentPlans() {
+  const store = useClinicStore()
+  const userRole = store.userRole || (typeof window !== 'undefined' ? localStorage.getItem('userRole') : '') || ''
+  const isAuthorizedToManageGoals = canManageClinicalGoals(userRole)
+
   const [loading, setLoading] = useState(false)
   const [treatmentPlans, setTreatmentPlans] = useState([])
   const [exercisesList, setExercisesList] = useState([])
@@ -82,19 +88,21 @@ export default function PatientTreatmentPlans() {
     const doneEx = nextExercises.filter(e => e.done).length
     const newPracticePercent = totalEx > 0 ? Math.round((doneEx / totalEx) * 100) : 0
 
-    // Update goals in treatment plans optimistically
+    // Update goals and overallProgress in treatment plans optimistically
     setTreatmentPlans(prev => prev.map(p => {
+      let updatedGoals = p.goals
       if (Array.isArray(p.goals)) {
-        const updatedGoals = p.goals.map(g => {
+        updatedGoals = p.goals.map(g => {
           const t = (g.title || '').toLowerCase()
           if (t.includes('daily practice') || t.includes('milestone routine') || t.includes('practice') || t.includes('exercise')) {
             return { ...g, percent: newPracticePercent }
           }
           return g
         })
-        return { ...p, goals: updatedGoals }
       }
-      return p
+      const updatedPlan = { ...p, goals: updatedGoals }
+      const recomputedOverall = computePlanOverallProgress(updatedPlan, nextExercises)
+      return { ...updatedPlan, overallProgress: recomputedOverall }
     }))
 
     try {
@@ -109,6 +117,10 @@ export default function PatientTreatmentPlans() {
 
   // --- Dynamic Treatment Goals & Targets Handlers ---
   const handleOpenAddGoal = (plan) => {
+    if (!isAuthorizedToManageGoals) {
+      toast.error('Unauthorized: Patients cannot modify clinical goals.')
+      return
+    }
     setActivePlanForGoal(plan)
     setEditingGoal(null)
     goalForm.resetFields()
@@ -122,6 +134,10 @@ export default function PatientTreatmentPlans() {
   }
 
   const handleOpenEditGoal = (goal, plan) => {
+    if (!isAuthorizedToManageGoals) {
+      toast.error('Unauthorized: Patients cannot modify clinical goals.')
+      return
+    }
     setActivePlanForGoal(plan)
     setEditingGoal(goal)
     goalForm.setFieldsValue({
@@ -134,6 +150,10 @@ export default function PatientTreatmentPlans() {
   }
 
   const handleSaveGoal = async (values) => {
+    if (!isAuthorizedToManageGoals) {
+      toast.error('Unauthorized: Patients cannot modify clinical goals.')
+      return
+    }
     if (!activePlanForGoal) return
     const currentGoals = Array.isArray(activePlanForGoal.goals) ? [...activePlanForGoal.goals] : []
     let updatedGoals = []
@@ -151,14 +171,18 @@ export default function PatientTreatmentPlans() {
       updatedGoals = [...currentGoals, newGoalObj]
     }
 
+    const updatedPlan = { ...activePlanForGoal, goals: updatedGoals }
+    const recomputedOverall = computePlanOverallProgress(updatedPlan, exercisesList)
+
     // Optimistically update state
-    setTreatmentPlans(prev => prev.map(p => p.id === activePlanForGoal.id ? { ...p, goals: updatedGoals } : p))
+    setTreatmentPlans(prev => prev.map(p => p.id === activePlanForGoal.id ? { ...p, goals: updatedGoals, overallProgress: recomputedOverall } : p))
     setGoalModalOpen(false)
     toast.success(editingGoal ? 'Goal progress updated in DB!' : 'New recovery goal added to treatment plan!')
 
     try {
       await api.put(`/api/patient/treatment-plans/${activePlanForGoal.id}`, {
-        goals: updatedGoals
+        goals: updatedGoals,
+        overallProgress: recomputedOverall
       })
     } catch (err) {
       console.warn('DB goal update sync notice:', err?.message)
@@ -166,6 +190,10 @@ export default function PatientTreatmentPlans() {
   }
 
   const handleDeleteGoal = async (goalId, plan) => {
+    if (!isAuthorizedToManageGoals) {
+      toast.error('Unauthorized: Patients cannot delete clinical goals.')
+      return
+    }
     const currentGoals = Array.isArray(plan.goals) ? plan.goals : []
     const updatedGoals = currentGoals.filter(g => g.id !== goalId)
 
@@ -182,6 +210,10 @@ export default function PatientTreatmentPlans() {
   }
 
   const handleQuickAdjustGoalProgress = async (goal, delta, plan) => {
+    if (!isAuthorizedToManageGoals) {
+      toast.error('Unauthorized: Patients cannot modify clinical goals.')
+      return
+    }
     const currentGoals = Array.isArray(plan.goals) ? [...plan.goals] : []
     const updatedGoals = currentGoals.map(g => {
       if (g.id === goal.id) {
@@ -191,13 +223,17 @@ export default function PatientTreatmentPlans() {
       return g
     })
 
-    setTreatmentPlans(prev => prev.map(p => p.id === plan.id ? { ...p, goals: updatedGoals } : p))
+    const updatedPlan = { ...plan, goals: updatedGoals }
+    const recomputedOverall = computePlanOverallProgress(updatedPlan, exercisesList)
+
+    setTreatmentPlans(prev => prev.map(p => p.id === plan.id ? { ...p, goals: updatedGoals, overallProgress: recomputedOverall } : p))
     const updatedP = Math.min(100, Math.max(0, (goal.percent || 0) + delta))
     toast.success(`Goal target updated to ${updatedP}%`)
 
     try {
       await api.put(`/api/patient/treatment-plans/${plan.id}`, {
-        goals: updatedGoals
+        goals: updatedGoals,
+        overallProgress: recomputedOverall
       })
     } catch (err) {
       console.warn('DB goal adjustment sync notice:', err?.message)
@@ -242,12 +278,20 @@ export default function PatientTreatmentPlans() {
   }
 
   const handleOpenAddModal = () => {
+    if (!isAuthorizedToManageGoals) {
+      toast.error('Unauthorized: Patients cannot create treatment plans.')
+      return
+    }
     setEditingPlan(null)
     form.resetFields()
     setModalOpen(true)
   }
 
   const handleOpenEditModal = (plan) => {
+    if (!isAuthorizedToManageGoals) {
+      toast.error('Unauthorized: Patients cannot edit treatment plans.')
+      return
+    }
     setEditingPlan(plan)
     const disc = plan.discipline || getDisciplineInfo(plan).name
     form.setFieldsValue({
@@ -262,6 +306,10 @@ export default function PatientTreatmentPlans() {
   }
 
   const handleDeletePlan = async (id) => {
+    if (!isAuthorizedToManageGoals) {
+      toast.error('Unauthorized: Patients cannot delete treatment plans.')
+      return
+    }
     try {
       const res = await api.delete(`/api/patient/treatment-plans/${id}`)
       if (res.data?.success) {
@@ -274,6 +322,10 @@ export default function PatientTreatmentPlans() {
   }
 
   const handleSavePlan = async (values) => {
+    if (!isAuthorizedToManageGoals) {
+      toast.error('Unauthorized: Patients cannot save treatment plans.')
+      return
+    }
     try {
       if (editingPlan) {
         const res = await api.put(`/api/patient/treatment-plans/${editingPlan.id}`, values)
@@ -392,6 +444,9 @@ export default function PatientTreatmentPlans() {
                   <Tag color={plan.status === 'Completed' ? 'green' : 'blue'} className="rounded-full font-bold text-[9px] uppercase px-2.5 m-0">
                     {plan.status || 'Active'}
                   </Tag>
+                  <Tag color="purple" className="rounded-full font-black text-[10px] px-2.5 py-0.5 m-0 border-none bg-[#8C4BFF]/10 text-[#8C4BFF]">
+                    Plan Progress: {computePlanOverallProgress(plan, exercisesList)}%
+                  </Tag>
                 </div>
               </div>
 
@@ -407,15 +462,17 @@ export default function PatientTreatmentPlans() {
                     </Tag>
                   </div>
 
-                  <Button
-                    type="dashed"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={() => handleOpenAddGoal(plan)}
-                    className="rounded-lg text-[11px] font-bold text-[#8C4BFF] border-[#8C4BFF]/40 hover:border-[#8C4BFF] hover:bg-[#8C4BFF]/5 flex items-center gap-1 h-7"
-                  >
-                    Add Target Goal
-                  </Button>
+                  {isAuthorizedToManageGoals && (
+                    <Button
+                      type="dashed"
+                      size="small"
+                      icon={<PlusOutlined />}
+                      onClick={() => handleOpenAddGoal(plan)}
+                      className="rounded-lg text-[11px] font-bold text-[#8C4BFF] border-[#8C4BFF]/40 hover:border-[#8C4BFF] hover:bg-[#8C4BFF]/5 flex items-center gap-1 h-7"
+                    >
+                      Add Target Goal
+                    </Button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -473,55 +530,57 @@ export default function PatientTreatmentPlans() {
                             </Tag>
                           </div>
 
-                          <div className="flex items-center gap-1">
-                            {!isPracticeGoal && (
-                              <div className="flex items-center gap-0.5 mr-1">
-                                <Tooltip title="Decrease progress by 10%">
-                                  <button
-                                    onClick={() => handleQuickAdjustGoalProgress(g, -10, plan)}
-                                    className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
-                                  >
-                                    -10%
-                                  </button>
-                                </Tooltip>
-                                <Tooltip title="Increase progress by 10%">
-                                  <button
-                                    onClick={() => handleQuickAdjustGoalProgress(g, 10, plan)}
-                                    className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
-                                  >
-                                    +10%
-                                  </button>
-                                </Tooltip>
-                              </div>
-                            )}
+                          {isAuthorizedToManageGoals && (
+                            <div className="flex items-center gap-1">
+                              {!isPracticeGoal && (
+                                <div className="flex items-center gap-0.5 mr-1">
+                                  <Tooltip title="Decrease progress by 10%">
+                                    <button
+                                      onClick={() => handleQuickAdjustGoalProgress(g, -10, plan)}
+                                      className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
+                                    >
+                                      -10%
+                                    </button>
+                                  </Tooltip>
+                                  <Tooltip title="Increase progress by 10%">
+                                    <button
+                                      onClick={() => handleQuickAdjustGoalProgress(g, 10, plan)}
+                                      className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 cursor-pointer"
+                                    >
+                                      +10%
+                                    </button>
+                                  </Tooltip>
+                                </div>
+                              )}
 
-                            <Button 
-                              size="small" 
-                              type="text"
-                              icon={<EditOutlined className="text-[#8C4BFF] text-[11px]" />} 
-                              onClick={() => handleOpenEditGoal(g, plan)}
-                              className="h-6 px-1.5 text-[10px] font-bold text-[#8C4BFF] hover:bg-[#8C4BFF]/10 rounded"
-                            >
-                              Edit
-                            </Button>
-
-                            <Popconfirm
-                              title="Delete Goal"
-                              description="Are you sure you want to remove this goal from the treatment plan?"
-                              onConfirm={() => handleDeleteGoal(g.id, plan)}
-                              okText="Delete"
-                              cancelText="Cancel"
-                              okButtonProps={{ danger: true }}
-                            >
                               <Button 
                                 size="small" 
                                 type="text"
-                                danger
-                                icon={<DeleteOutlined className="text-[11px]" />} 
-                                className="h-6 px-1.5 text-[10px] hover:bg-rose-50 rounded"
-                              />
-                            </Popconfirm>
-                          </div>
+                                icon={<EditOutlined className="text-[#8C4BFF] text-[11px]" />} 
+                                onClick={() => handleOpenEditGoal(g, plan)}
+                                className="h-6 px-1.5 text-[10px] font-bold text-[#8C4BFF] hover:bg-[#8C4BFF]/10 rounded"
+                              >
+                                Edit
+                              </Button>
+
+                              <Popconfirm
+                                title="Delete Goal"
+                                description="Are you sure you want to remove this goal from the treatment plan?"
+                                onConfirm={() => handleDeleteGoal(g.id, plan)}
+                                okText="Delete"
+                                cancelText="Cancel"
+                                okButtonProps={{ danger: true }}
+                              >
+                                <Button 
+                                  size="small" 
+                                  type="text"
+                                  danger
+                                  icon={<DeleteOutlined className="text-[11px]" />} 
+                                  className="h-6 px-1.5 text-[10px] hover:bg-rose-50 rounded"
+                                />
+                              </Popconfirm>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )
