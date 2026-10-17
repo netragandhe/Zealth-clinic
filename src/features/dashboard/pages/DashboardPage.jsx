@@ -60,6 +60,7 @@ import PatientFormsDocuments from '../components/patient/PatientFormsDocuments'
 import PatientFundingClaims from '../components/patient/PatientFundingClaims'
 import PatientMessages from '../components/patient/PatientMessages'
 import PatientHealthSharing from '../components/patient/PatientHealthSharing'
+import PatientSettings from '../components/patient/PatientSettings'
 
 // Modular Clinic Admin Dashboard components
 import ClinicAdminDashboard from '../components/clinic/ClinicAdminDashboard'
@@ -170,6 +171,9 @@ function renderSectionContent(section, role, store, navigate, modalContextProps)
         return <PatientMessages />
       case 'health-sharing':
         return <PatientHealthSharing />
+      case 'settings':
+      case 'profile':
+        return <PatientSettings />
       default:
         break
     }

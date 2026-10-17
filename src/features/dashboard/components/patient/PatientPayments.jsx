@@ -51,16 +51,13 @@ export default function PatientPayments() {
       })
       if (res.data?.success) {
         toast.success(`Payment of $${payAmount.toFixed(2)} completed successfully!`)
+        setPayModalOpen(false)
         fetchInvoices()
       } else {
-        setInvoicesList(prev => prev.map(inv => inv.id === selectedInvoice.id ? { ...inv, status: 'Paid', due: 0, outstandingDue: 0, balanceDue: 0 } : inv))
-        toast.success(`Payment of $${payAmount.toFixed(2)} completed successfully!`)
+        toast.error(res.data?.message || 'Payment processing could not be completed.')
       }
     } catch (err) {
-      setInvoicesList(prev => prev.map(inv => inv.id === selectedInvoice.id ? { ...inv, status: 'Paid', due: 0, outstandingDue: 0, balanceDue: 0 } : inv))
-      toast.success(`Payment of $${payAmount.toFixed(2)} completed successfully!`)
-    } finally {
-      setPayModalOpen(false)
+      toast.error(err.response?.data?.message || 'Payment processing failed. Please verify payment details and try again.')
     }
   }
 
@@ -92,12 +89,12 @@ export default function PatientPayments() {
           </div>
           <Tag color="purple" className="rounded-full border-none font-bold text-[10px] px-3.5 py-1 uppercase">
             <DollarOutlined className="mr-1" />
-            Secure Payments Active
+            Payments & Claims Ledger (Sandbox Mode)
           </Tag>
         </div>
       </Card>
 
-      {/* Invoice Ledger Table */}
+      {/* Invoice Ledger Card (Responsive: Table for Desktop, Cards for Mobile) */}
       <Card className="border border-slate-100 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden bg-white dark:bg-slate-900" title={<span className="font-extrabold text-xs text-slate-700 dark:text-slate-350">Clinic Invoices & Receipts</span>} style={{ marginTop: '24px' }}>
         {loading ? (
           <div className="text-center py-8">
@@ -106,93 +103,181 @@ export default function PatientPayments() {
         ) : invoicesList.length === 0 ? (
           <Empty description="No invoices found." />
         ) : (
-          <Table
-            dataSource={invoicesList}
-            rowKey={(r) => r.id || r.key}
-            pagination={false}
-            scroll={{ x: 700 }}
-            className="border-none"
-            columns={[
-              { 
-                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Invoice ID</span>, 
-                dataIndex: 'id', 
-                render: (t) => <span className="font-mono text-xs text-slate-600 dark:text-slate-400 font-bold">{t}</span> 
-              },
-              { 
-                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Clinic Service</span>, 
-                render: (_, rec) => (
-                  <div>
-                    <span className="font-bold text-slate-800 dark:text-slate-200 text-xs block">{rec.service}</span>
-                    <span className="text-[9px] text-slate-450 dark:text-slate-500 block mt-0.5">Practitioner: {rec.practitioner}</span>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <Table
+                dataSource={invoicesList}
+                rowKey={(r) => r.id || r.key}
+                pagination={false}
+                scroll={{ x: 700 }}
+                className="border-none"
+                columns={[
+                  { 
+                    title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Invoice ID</span>, 
+                    dataIndex: 'id', 
+                    render: (t) => <span className="font-mono text-xs text-slate-600 dark:text-slate-400 font-bold">{t}</span> 
+                  },
+                  { 
+                    title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Clinic Service</span>, 
+                    render: (_, rec) => (
+                      <div>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 text-xs block">{rec.service}</span>
+                        <span className="text-[9px] text-slate-450 dark:text-slate-500 block mt-0.5">Practitioner: {rec.practitioner}</span>
+                      </div>
+                    )
+                  },
+                  { 
+                    title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Due Date</span>, 
+                    dataIndex: 'due', 
+                    render: (d) => <span className="text-slate-500 font-semibold text-xs">{d}</span> 
+                  },
+                  { 
+                    title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Insurance Claim</span>, 
+                    render: (_, rec) => {
+                      const claim = rec.claims && rec.claims.length > 0 ? rec.claims[0] : null
+                      return claim ? (
+                        <Tag color="purple" className="rounded-full border-none font-bold text-[9px] px-2.5 py-0.5">
+                          {claim.id} ({claim.funding || 'NDIS'})
+                        </Tag>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic">—</span>
+                      )
+                    } 
+                  },
+                  { 
+                    title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Original Total</span>, 
+                    dataIndex: 'amount', 
+                    render: (a) => <span className="font-semibold text-slate-600 dark:text-slate-400 text-xs">${Number(a || 0).toFixed(2)}</span> 
+                  },
+                  { 
+                    title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Outstanding Total</span>, 
+                    render: (_, rec) => {
+                      const bal = getInvoiceOutstandingBalance(rec)
+                      return (
+                        <span className={`font-extrabold text-xs ${bal > 0 ? 'text-[#8C4BFF]' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          ${bal.toFixed(2)}
+                        </span>
+                      )
+                    } 
+                  },
+                  { 
+                    title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Status</span>, 
+                    dataIndex: 'status', 
+                    render: (s) => (
+                      <Tag color={s === 'Paid' ? 'success' : s === 'Unpaid' ? 'warning' : 'processing'} className="rounded-full border-none font-bold text-[9px] px-2.5 py-0.5">
+                        {s}
+                      </Tag>
+                    ) 
+                  },
+                  {
+                    title: '',
+                    key: 'action',
+                    align: 'right',
+                    render: (_, record) => {
+                      const bal = getInvoiceOutstandingBalance(record)
+                      return bal > 0 && record.status !== 'Paid' ? (
+                        <Button
+                          size="small"
+                          type="primary"
+                          icon={<CreditCardOutlined />}
+                          style={{ backgroundColor: '#8C4BFF', border: 'none' }}
+                          className="rounded-lg text-[10px] font-bold h-8 text-white"
+                          onClick={() => handlePay(record)}
+                        >
+                          Pay Invoice
+                        </Button>
+                      ) : (
+                        <Button
+                          size="small"
+                          icon={<DownloadOutlined />}
+                          className="rounded-lg text-[10px] font-semibold h-8 dark:bg-slate-905 dark:border-slate-800"
+                          onClick={() => generatePDFReceipt(record)}
+                        >
+                          Receipt
+                        </Button>
+                      )
+                    }
+                  }
+                ]}
+              />
+            </div>
+
+            {/* Mobile Card View (Optimized for <768px screens without horizontal scroll) */}
+            <div className="block md:hidden space-y-3">
+              {invoicesList.map(rec => {
+                const bal = getInvoiceOutstandingBalance(rec)
+                const isPayable = bal > 0 && rec.status !== 'Paid'
+                const claim = rec.claims && rec.claims.length > 0 ? rec.claims[0] : null
+
+                return (
+                  <div key={rec.id} className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-xl space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="font-mono text-xs font-bold text-slate-700 dark:text-slate-300 block">{rec.id}</span>
+                        <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block mt-0.5">{rec.service}</span>
+                        <span className="text-[10px] text-slate-400 block">Practitioner: {rec.practitioner}</span>
+                      </div>
+                      <Tag color={rec.status === 'Paid' ? 'success' : rec.status === 'Unpaid' ? 'warning' : 'processing'} className="rounded-full border-none font-bold text-[10px] px-2.5 py-0.5 m-0">
+                        {rec.status}
+                      </Tag>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-slate-100 dark:border-slate-800/80 py-2.5">
+                      <div>
+                        <span className="text-[9px] text-slate-400 uppercase font-bold block">Due Date</span>
+                        <span className="text-slate-600 dark:text-slate-300 font-semibold">{rec.due}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-slate-400 uppercase font-bold block">Insurance Claim</span>
+                        {claim ? (
+                          <Tag color="purple" className="rounded-full border-none font-bold text-[9px] px-2 py-0.5 m-0">
+                            {claim.id} ({claim.funding || 'NDIS'})
+                          </Tag>
+                        ) : (
+                          <span className="text-slate-400 italic">—</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-slate-400 uppercase font-bold block">Original Total</span>
+                        <span className="text-slate-600 dark:text-slate-400 font-semibold">${Number(rec.amount || 0).toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] text-slate-400 uppercase font-bold block">Outstanding Due</span>
+                        <span className={`font-extrabold text-xs ${bal > 0 ? 'text-[#8C4BFF]' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                          ${bal.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      {isPayable ? (
+                        <Button
+                          block
+                          type="primary"
+                          icon={<CreditCardOutlined />}
+                          style={{ backgroundColor: '#8C4BFF', border: 'none' }}
+                          className="rounded-xl text-xs font-bold h-9 text-white"
+                          onClick={() => handlePay(rec)}
+                        >
+                          Pay Invoice (${bal.toFixed(2)})
+                        </Button>
+                      ) : (
+                        <Button
+                          block
+                          icon={<DownloadOutlined />}
+                          className="rounded-xl text-xs font-semibold h-9 dark:bg-slate-900 dark:border-slate-800"
+                          onClick={() => generatePDFReceipt(rec)}
+                        >
+                          Download Receipt PDF
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )
-              },
-              { 
-                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Due Date</span>, 
-                dataIndex: 'due', 
-                render: (d) => <span className="text-slate-500 font-semibold text-xs">{d}</span> 
-              },
-              { 
-                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Due Date</span>, 
-                dataIndex: 'due', 
-                render: (d) => <span className="text-slate-500 font-semibold text-xs">{d}</span> 
-              },
-              { 
-                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Original Total</span>, 
-                dataIndex: 'amount', 
-                render: (a) => <span className="font-semibold text-slate-600 dark:text-slate-400 text-xs">${Number(a || 0).toFixed(2)}</span> 
-              },
-              { 
-                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Outstanding Total</span>, 
-                render: (_, rec) => {
-                  const bal = getInvoiceOutstandingBalance(rec)
-                  return (
-                    <span className={`font-extrabold text-xs ${bal > 0 ? 'text-[#8C4BFF]' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                      ${bal.toFixed(2)}
-                    </span>
-                  )
-                } 
-              },
-              { 
-                title: <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Status</span>, 
-                dataIndex: 'status', 
-                render: (s) => (
-                  <Tag color={s === 'Paid' ? 'success' : s === 'Unpaid' ? 'warning' : 'processing'} className="rounded-full border-none font-bold text-[9px] px-2.5 py-0.5">
-                    {s}
-                  </Tag>
-                ) 
-              },
-              {
-                title: '',
-                key: 'action',
-                align: 'right',
-                render: (_, record) => {
-                  const bal = getInvoiceOutstandingBalance(record)
-                  return bal > 0 && record.status !== 'Paid' ? (
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={<CreditCardOutlined />}
-                      style={{ backgroundColor: '#8C4BFF', border: 'none' }}
-                      className="rounded-lg text-[10px] font-bold h-8 text-white"
-                      onClick={() => handlePay(record)}
-                    >
-                      Pay Invoice
-                    </Button>
-                  ) : (
-                    <Button
-                      size="small"
-                      icon={<DownloadOutlined />}
-                      className="rounded-lg text-[10px] font-semibold h-8 dark:bg-slate-905 dark:border-slate-800"
-                      onClick={() => generatePDFReceipt(record)}
-                    >
-                      Receipt
-                    </Button>
-                  )
-                }
-              }
-            ]}
-          />
+              })}
+            </div>
+          </>
         )}
       </Card>
 
@@ -220,7 +305,7 @@ export default function PatientPayments() {
             {/* Payment Method Selector */}
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Select Payment Method</label>
-              <Radio.Group onChange={e => setPaymentMethod(e.target.value)} value={paymentMethod} className="w-full grid grid-cols-2 gap-2">
+              <Radio.Group onChange={e => setPaymentMethod(e.target.value)} value={paymentMethod} className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Radio.Button value="card" className="h-10 flex items-center justify-center rounded-xl font-bold text-xs">Credit/Debit Card</Radio.Button>
                 <Radio.Button value="apple" className="h-10 flex items-center justify-center rounded-xl font-bold text-xs">Apple Pay</Radio.Button>
                 <Radio.Button value="google" className="h-10 flex items-center justify-center rounded-xl font-bold text-xs">Google Pay</Radio.Button>
@@ -270,10 +355,10 @@ export default function PatientPayments() {
               </div>
             )}
 
-            {/* Secure confirmation */}
-            <div className="flex justify-between items-center text-[10px] text-slate-400 font-semibold py-1">
-              <span><SafetyOutlined className="mr-1 text-emerald-500" />SSL Encrypted Checkout</span>
-              <span>PCI-DSS Compliant</span>
+            {/* Truthful Payment Security Statement */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-[10px] text-slate-400 font-semibold py-1 gap-1">
+              <span><SafetyOutlined className="mr-1 text-emerald-500" />Encrypted Transaction Processing (Sandbox / Direct Settlement)</span>
+              <span>Multi-Tenant Ledger Security</span>
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

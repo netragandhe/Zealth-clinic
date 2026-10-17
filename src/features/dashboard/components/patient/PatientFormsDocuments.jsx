@@ -20,6 +20,7 @@ export default function PatientFormsDocuments() {
 
   const [formsList, setFormsList] = useState([])
   const [documentsList, setDocumentsList] = useState([])
+  const [isUploading, setIsUploading] = useState(false)
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('')
@@ -58,9 +59,21 @@ export default function PatientFormsDocuments() {
     e.preventDefault()
     if (!selectedForm) return
 
+    const hasQ = [formDataInput.q1, formDataInput.q2, formDataInput.q3, formDataInput.q4].some(v => v !== undefined && v !== null)
+    let payloadData = { ...formDataInput }
+    if (hasQ) {
+      const allAnswered = [formDataInput.q1, formDataInput.q2, formDataInput.q3, formDataInput.q4].every(v => v !== undefined && v !== null)
+      if (allAnswered) {
+        const sum = Number(formDataInput.q1) + Number(formDataInput.q2) + Number(formDataInput.q3) + Number(formDataInput.q4)
+        const percent = Math.round((sum / 12) * 100)
+        payloadData.calculatedScore = `${percent}%`
+        payloadData.totalScore = percent
+      }
+    }
+
     try {
       const res = await api.post(`/api/patient/forms/${selectedForm.id}/submit`, {
-        formData: formDataInput
+        formData: payloadData
       })
       if (res.data?.success) {
         toast.success(`${selectedForm.name} submitted successfully!`)
@@ -236,7 +249,11 @@ export default function PatientFormsDocuments() {
               <p className="text-slate-400 text-xs font-semibold">Upload referrals, radiology imaging scans, or NDIS plan letters for review by your Care Team practitioners.</p>
               
               <Dragger
+                disabled={isUploading}
                 beforeUpload={async (file) => {
+                  if (isUploading) return false
+                  setIsUploading(true)
+
                   const patientUserName = localStorage.getItem('userName') || 'Patient'
                   const newDocPayload = {
                     name: file.name,
@@ -248,15 +265,19 @@ export default function PatientFormsDocuments() {
                   try {
                     const res = await api.post('/api/patient/documents', newDocPayload)
                     if (res.data?.success) {
+                      const uploadedItem = res.data.data
+                      if (uploadedItem) {
+                        setDocumentsList(prev => [uploadedItem, ...prev.filter(d => d.id !== uploadedItem.id)])
+                      }
                       toast.success(`${file.name} uploaded and shared with care practitioners successfully!`)
-                      fetchFormsAndDocuments()
+                      await fetchFormsAndDocuments()
                     } else {
-                      setDocumentsList(prev => [{ id: `doc_${Date.now()}`, date: 'Today', ...newDocPayload }, ...prev])
-                      toast.success(`${file.name} uploaded and shared with care practitioners successfully!`)
+                      toast.error(res.data?.message || `Failed to upload ${file.name}.`)
                     }
                   } catch (err) {
-                    setDocumentsList(prev => [{ id: `doc_${Date.now()}`, date: 'Today', ...newDocPayload }, ...prev])
-                    toast.success(`${file.name} uploaded and shared with care practitioners successfully!`)
+                    toast.error(err.response?.data?.message || `Failed to upload ${file.name}. Please retry.`)
+                  } finally {
+                    setIsUploading(false)
                   }
                   return false
                 }}
@@ -276,8 +297,14 @@ export default function PatientFormsDocuments() {
                 <p className="text-xs font-bold text-slate-750 dark:text-slate-300 m-0">Drag & drop or click to upload</p>
                 <span className="text-[10px] text-slate-400 block mt-1 mb-4">Accepts PDFs, Images, Scans</span>
                 
-                <Button type="primary" style={{ backgroundColor: '#8C4BFF', borderColor: '#8C4BFF' }} className="rounded-xl font-bold text-xs h-8 px-5 shadow-sm text-white">
-                  Browse Files
+                <Button 
+                  type="primary" 
+                  loading={isUploading}
+                  disabled={isUploading}
+                  style={{ backgroundColor: '#8C4BFF', borderColor: '#8C4BFF', pointerEvents: 'none' }} 
+                  className="rounded-xl font-bold text-xs h-8 px-5 shadow-sm text-white"
+                >
+                  {isUploading ? 'Uploading...' : 'Browse Files'}
                 </Button>
               </Dragger>
             </div>

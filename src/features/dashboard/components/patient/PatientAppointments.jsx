@@ -30,6 +30,8 @@ export default function PatientAppointments() {
   const [bookingDate, setBookingDate] = useState('')
   const [bookingTime, setBookingTime] = useState('')
   const [bookingNotes, setBookingNotes] = useState('')
+  const [selectedService, setSelectedService] = useState('Physiotherapy Consultation')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [rescheduleDate, setRescheduleDate] = useState('')
   const [rescheduleTime, setRescheduleTime] = useState('')
@@ -121,12 +123,15 @@ export default function PatientAppointments() {
       }
     }
 
+    if (isSubmitting) return
+    setIsSubmitting(true)
+
     try {
       const payload = {
         practitionerId: targetPracId && !['sarah','emily','james'].includes(targetPracId) ? targetPracId : null,
         practitionerName,
-        branchName: 'Melbourne Allied Health',
-        serviceName: 'General Consultation',
+        branchName: chosenPrac?.clinic || 'Melbourne Allied Health',
+        serviceName: selectedService || 'General Consultation',
         date: bookingDate || new Date().toISOString().split('T')[0],
         startTime: bookingTime || '10:00 AM',
         notes: bookingNotes
@@ -141,7 +146,7 @@ export default function PatientAppointments() {
           time: app.startTime || app.time || '10:00 AM',
           practitioner: app.practitionerName,
           clinic: app.branchName || 'Melbourne Allied Health',
-          type: app.serviceName || 'General Consultation',
+          type: app.serviceName || selectedService || 'General Consultation',
           funding: 'NDIS',
           status: 'Upcoming'
         }
@@ -149,9 +154,13 @@ export default function PatientAppointments() {
         if (store.fetchAppointments) {
           store.fetchAppointments()
         }
-        toast.success('Appointment request submitted successfully to database!')
+        toast.success('Appointment booked successfully and confirmed in database!')
+        setBookModalOpen(false)
+        setBookingDate('')
+        setBookingTime('')
+        setBookingNotes('')
       } else {
-        toast.success('Appointment booking request submitted! Awaiting confirmation.')
+        toast.error(res.data?.message || 'Could not confirm appointment. Please check availability and retry.')
       }
     } catch (err) {
       if (err.response?.data?.isUnavailable) {
@@ -165,24 +174,10 @@ export default function PatientAppointments() {
         return
       }
 
-      // Fallback local state update
-      const newAppObj = {
-        id: `app_${Date.now()}`,
-        date: bookingDate || new Date().toISOString().split('T')[0],
-        time: bookingTime || '10:00 AM',
-        practitioner: practitionerName,
-        clinic: 'Melbourne Allied Health',
-        type: 'General Consultation',
-        funding: 'NDIS',
-        status: 'Upcoming'
-      }
-      setAppointmentsList(prev => [newAppObj, ...prev])
-      toast.success('Appointment request submitted!')
+      const errMsg = err.response?.data?.message || 'Failed to submit appointment request. Please check slot availability and try again.'
+      toast.error(errMsg)
     } finally {
-      setBookModalOpen(false)
-      setBookingDate('')
-      setBookingTime('')
-      setBookingNotes('')
+      setIsSubmitting(false)
     }
   }
 
@@ -475,6 +470,22 @@ export default function PatientAppointments() {
             </Select>
           </div>
 
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Select Clinical Service</label>
+            <Select 
+              className="w-full rounded-xl" 
+              value={selectedService}
+              onChange={(val) => setSelectedService(val)}
+            >
+              <Option value="Physiotherapy Consultation">Physiotherapy Consultation</Option>
+              <Option value="Occupational Therapy">Occupational Therapy</Option>
+              <Option value="Speech Pathology Assessment">Speech Pathology Assessment</Option>
+              <Option value="Initial Clinical Assessment">Initial Clinical Assessment</Option>
+              <Option value="Follow-up Review">Follow-up Review</Option>
+              <Option value="General Consultation">General Consultation</Option>
+            </Select>
+          </div>
+
           {(() => {
             const currentSelectedPrac = practitionersList.find(p => p.id === (selectedPractitioner || practitionersList[0]?.id)) || (store.practitioners || []).find(p => p.id === selectedPractitioner)
             if (bookingDate && currentSelectedPrac && !isPractitionerAvailable(currentSelectedPrac, dayjs(bookingDate))) {
@@ -497,7 +508,9 @@ export default function PatientAppointments() {
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Preferred Time</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                Preferred Time <span className="text-[9px] text-[#8C4BFF] font-semibold">(AEDT / Local)</span>
+              </label>
               <TimePicker 
                 format="HH:mm" 
                 className="w-full rounded-xl h-9" 
@@ -518,8 +531,10 @@ export default function PatientAppointments() {
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button onClick={() => setBookModalOpen(false)} className="rounded-xl font-bold border-slate-200">Cancel</Button>
-            <Button type="primary" htmlType="submit" style={{ backgroundColor: '#0E1B33', borderColor: '#0E1B33' }} className="rounded-xl font-bold text-xs text-white">Submit Request</Button>
+            <Button onClick={() => setBookModalOpen(false)} disabled={isSubmitting} className="rounded-xl font-bold border-slate-200">Cancel</Button>
+            <Button type="primary" htmlType="submit" loading={isSubmitting} disabled={isSubmitting} style={{ backgroundColor: '#0E1B33', borderColor: '#0E1B33' }} className="rounded-xl font-bold text-xs text-white">
+              {isSubmitting ? 'Confirming...' : 'Submit Request'}
+            </Button>
           </div>
         </form>
       </Modal>
