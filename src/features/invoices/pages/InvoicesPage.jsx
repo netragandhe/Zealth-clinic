@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Table, Button, Tag, Input, Select, DatePicker, Modal, Space, Form, InputNumber, Tooltip } from 'antd'
 import {
@@ -72,6 +72,15 @@ export default function InvoicesPage() {
   
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const isSubmittingRef = useRef(false)
+  const activeIdempotencyKeyRef = useRef(null)
+
+  const getOrCreateIdempotencyKey = () => {
+    if (!activeIdempotencyKeyRef.current) {
+      activeIdempotencyKeyRef.current = `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    }
+    return activeIdempotencyKeyRef.current
+  }
 
   // Details Modal State
   const [detailVisible, setDetailVisible] = useState(false)
@@ -139,6 +148,11 @@ export default function InvoicesPage() {
 
   // action: 'draft' | 'issue'
   const handleCreateInvoice = async (values, action = 'issue') => {
+    if (isSubmittingRef.current) {
+      console.warn('Duplicate invoice creation request blocked by synchronous submission lock.')
+      return
+    }
+    isSubmittingRef.current = true
     setSubmitting(true)
     const isDraft = action === 'draft'
     const baseAmount = parseFloat(values.amount) || 0
@@ -147,7 +161,11 @@ export default function InvoicesPage() {
     const gstAmount = isTaxable ? parseFloat((baseAmount * 0.1).toFixed(2)) : 0
     const totalAmount = parseFloat((baseAmount + gstAmount).toFixed(2))
 
+    // Stable submission/idempotency key: retained across network retries, reset on success/cancel
+    const idempotencyKey = getOrCreateIdempotencyKey()
+
     const newInvoice = {
+      idempotencyKey,
       clientName: values.clientName,
       patientName: values.clientName,
       recipient: values.recipient || values.clientName,
@@ -178,6 +196,7 @@ export default function InvoicesPage() {
       if (res && res.success && res.data) {
         store.addInvoice(res.data)
         toast.success(isDraft ? 'Invoice saved as Draft!' : 'Invoice created & issued successfully!')
+        activeIdempotencyKeyRef.current = null // Key fulfilled: reset for future new invoices
         setCreateVisible(false)
         createForm.resetFields()
         fetchInvoicesData()
@@ -187,7 +206,9 @@ export default function InvoicesPage() {
     } catch (err) {
       console.error('Create invoice error:', err)
       toast.error('Error creating invoice in backend database')
+      // Note: activeIdempotencyKeyRef.current is preserved here so retries reuse the same key!
     } finally {
+      isSubmittingRef.current = false
       setSubmitting(false)
     }
   }
@@ -1051,6 +1072,7 @@ export default function InvoicesPage() {
         </div>
         <button
           onClick={() => {
+            activeIdempotencyKeyRef.current = `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
             createForm.resetFields()
             createForm.setFieldsValue({
               issueDate: dayjs(),
@@ -1233,12 +1255,16 @@ export default function InvoicesPage() {
           </div>
         }
         open={createVisible}
-        onCancel={() => setCreateVisible(false)}
+        onCancel={() => {
+          if (isSubmittingRef.current || submitting) return
+          activeIdempotencyKeyRef.current = null
+          setCreateVisible(false)
+        }}
         footer={null}
         destroyOnHidden
         width={560}
       >
-        <Form layout="vertical" form={createForm} onFinish={handleCreateInvoice} className="mt-4">
+        <Form layout="vertical" form={createForm} onFinish={(values) => handleCreateInvoice(values, 'issue')} className="mt-4">
           <Form.Item name="clientName" label={<span className="text-xs font-semibold text-slate-500">Client / Patient Name</span>} rules={[{ required: true, message: 'Please select client' }]}>
             <Select placeholder="Select client patient" className="rounded-xl h-10 flex items-center">
               {store.patients.map(p => {
@@ -1296,17 +1322,35 @@ export default function InvoicesPage() {
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <Button onClick={() => setCreateVisible(false)} className="rounded-xl">Cancel</Button>
             <Button
+              disabled={submitting}
+              onClick={() => {
+                if (isSubmittingRef.current || submitting) return
+                activeIdempotencyKeyRef.current = null
+                setCreateVisible(false)
+              }}
+              className="rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={submitting}
               loading={submitting}
-              onClick={() => createForm.validateFields().then(values => handleCreateInvoice(values, 'draft')).catch(() => {})}
+              onClick={() => {
+                if (isSubmittingRef.current || submitting) return
+                createForm.validateFields().then(values => handleCreateInvoice(values, 'draft')).catch(() => {})
+              }}
               className="rounded-xl font-bold h-10 px-5 border-slate-300 text-slate-600 dark:text-slate-300 dark:border-slate-600 hover:border-[#8C4BFF] hover:text-[#8C4BFF]"
             >
               Save as Draft
             </Button>
             <Button
+              disabled={submitting}
               loading={submitting}
-              onClick={() => createForm.validateFields().then(values => handleCreateInvoice(values, 'issue')).catch(() => {})}
+              onClick={() => {
+                if (isSubmittingRef.current || submitting) return
+                createForm.validateFields().then(values => handleCreateInvoice(values, 'issue')).catch(() => {})
+              }}
               style={{ backgroundColor: '#8C4BFF', borderColor: '#8C4BFF' }}
               className="rounded-xl font-bold h-10 px-6 text-white shadow"
             >
