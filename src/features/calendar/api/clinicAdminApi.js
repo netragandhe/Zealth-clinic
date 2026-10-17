@@ -130,10 +130,13 @@ export const getPayments = async (params) => {
   return res.data
 }
 
-export const createPayment = async (paymentData) => {
+export const createPayment = async (paymentData, config = {}) => {
   const role = typeof window !== 'undefined' ? (localStorage.getItem('userRole') || 'clinic') : 'clinic'
   const endpoint = role === 'practitioner' ? '/api/practitioner/payments' : '/api/clinic-admin/payments'
-  const res = await api.post(endpoint, paymentData)
+  const headers = paymentData?.idempotencyKey
+    ? { 'x-idempotency-key': paymentData.idempotencyKey, ...(config.headers || {}) }
+    : (config.headers || {})
+  const res = await api.post(endpoint, paymentData, { ...config, headers })
   return res.data
 }
 

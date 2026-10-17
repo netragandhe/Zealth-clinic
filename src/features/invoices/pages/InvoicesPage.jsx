@@ -377,9 +377,6 @@ export default function InvoicesPage() {
     setSubmitting(true)
 
     const totalAmt = parseFloat(values.amount) || editLineItems.reduce((sum, it) => sum + (it.total || 0), 0)
-    const isPaid = (values.status || '').toLowerCase() === 'paid' || (values.due !== undefined && parseFloat(values.due) === 0)
-    const dueAmt = isPaid ? 0.0 : (values.due !== undefined && values.due !== null ? Math.max(0, parseFloat(values.due)) : totalAmt)
-    const finalStatus = isPaid ? 'Paid' : (values.status || editingInvoice.status || 'Processing')
 
     const updatedData = {
       clientName: values.clientName,
@@ -388,8 +385,7 @@ export default function InvoicesPage() {
       practitionerName: values.practitionerName,
       service: values.service || editLineItems[0]?.description || 'Clinical Care',
       amount: totalAmt,
-      due: dueAmt,
-      status: finalStatus,
+      status: values.status || editingInvoice.status || 'Processing',
       sentStatus: values.sentStatus || editingInvoice.sentStatus || 'Not Sent',
       issueDate: values.issueDate ? values.issueDate.format('YYYY-MM-DD') : (editingInvoice.issueDate || dayjs().format('YYYY-MM-DD')),
       dueDate: values.dueDate ? values.dueDate.format('YYYY-MM-DD') : (editingInvoice.dueDate || dayjs().add(7, 'day').format('YYYY-MM-DD')),
@@ -705,20 +701,11 @@ export default function InvoicesPage() {
     }
   }
 
-  const handleRecordPayment = async (invoiceId) => {
-    try {
-      const res = await updateInvoice(invoiceId, { status: 'Paid', due: 0.00 })
-      if (res && res.success && res.data) {
-        store.updateInvoice(res.data)
-        toast.success('Invoice marked Paid with $0.00 balance due!')
-        setDetailVisible(false)
-        setPreviewVisible(false)
-        fetchInvoicesData()
-      }
-    } catch (err) {
-      console.error('Record payment error:', err)
-      toast.error('Failed to record payment')
-    }
+  const handleRecordPayment = (invoice) => {
+    if (!invoice) return
+    setDetailVisible(false)
+    setPreviewVisible(false)
+    navigate('/payments', { state: { preselectInvoice: invoice } })
   }
 
   const handleSendInvoice = async (invoice) => {
@@ -1543,24 +1530,14 @@ export default function InvoicesPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Form.Item name="status" label={<span className="text-xs font-semibold text-slate-500">Payment Status</span>}>
-              <Select 
-                className="rounded-xl h-10 flex items-center"
-                onChange={(val) => {
-                  if (val === 'Paid') {
-                    editForm.setFieldsValue({ due: 0 })
-                  } else {
-                    const curAmt = editForm.getFieldValue('amount') || 0
-                    const curDue = editForm.getFieldValue('due')
-                    if (curDue === 0 || curDue === undefined) {
-                      editForm.setFieldsValue({ due: curAmt })
-                    }
-                  }
-                }}
-              >
+            <Form.Item 
+              name="status" 
+              label={<span className="text-xs font-semibold text-slate-500">Invoice Status</span>}
+              extra={<span className="text-[11px] text-slate-400">Paid and Partially Paid statuses are derived automatically from verified payments. To record a payment, use Payments Centre.</span>}
+            >
+              <Select className="rounded-xl h-10 flex items-center">
                 <Option value="Processing">Issued / Unpaid</Option>
-                <Option value="Partially Paid">Partially Paid</Option>
-                <Option value="Paid">Paid (Full)</Option>
+                <Option value="Draft">Draft</Option>
                 <Option value="Cancelled">Cancelled</Option>
               </Select>
             </Form.Item>

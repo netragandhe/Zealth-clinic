@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Table, Button, Input, Modal, Form, Select, DatePicker, Tooltip, Tag, Space, Divider } from 'antd'
 import { SearchOutlined, UserOutlined, FileTextOutlined, CreditCardOutlined, DollarOutlined, BankOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
@@ -19,6 +19,15 @@ export default function PaymentsPage() {
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const isSubmittingRef = useRef(false)
+  const activeIdempotencyKeyRef = useRef(null)
+
+  const getOrCreateIdempotencyKey = () => {
+    if (!activeIdempotencyKeyRef.current) {
+      activeIdempotencyKeyRef.current = `pay_idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    }
+    return activeIdempotencyKeyRef.current
+  }
   
   // Data for payment allocation
   const [allInvoices, setAllInvoices] = useState([])
@@ -90,6 +99,8 @@ export default function PaymentsPage() {
   }, [location.state])
 
   const handleOpenModal = () => {
+    activeIdempotencyKeyRef.current = null
+    isSubmittingRef.current = false
     loadPatientsAndInvoices()
     form.resetFields()
     setSelectedClient(null)
@@ -157,11 +168,19 @@ export default function PaymentsPage() {
   })
 
   const handleAddPayment = async (values) => {
+    if (isSubmittingRef.current) {
+      console.warn('Duplicate payment submission blocked by synchronous lock')
+      return
+    }
+    isSubmittingRef.current = true
     setSubmitting(true)
     const clientName = values.clientName || (selectedClient ? (selectedClient.fullName || selectedClient.name) : values.from)
     const patientId = values.patientId || (selectedClient ? selectedClient.id : null)
 
+    const idempotencyKey = getOrCreateIdempotencyKey()
+
     const newPayment = {
+      idempotencyKey,
       from: clientName,
       clientName: clientName,
       patientId: patientId,
@@ -175,8 +194,12 @@ export default function PaymentsPage() {
     try {
       const res = await createPayment(newPayment)
       if (res && res.success && res.data) {
-        setPayments(prev => [res.data, ...prev])
-        toast.success('New payment recorded & allocated successfully!')
+        setPayments(prev => {
+          const exists = prev.some(p => p.id === res.data.id || p.receiptNumber === res.data.receiptNumber)
+          return exists ? prev : [res.data, ...prev]
+        })
+        toast.success(res.idempotentReplay ? 'Payment already recorded (retrieved existing receipt)' : 'New payment recorded & allocated successfully!')
+        activeIdempotencyKeyRef.current = null // Key fulfilled: reset for future payments
         setModalOpen(false)
         form.resetFields()
         setSelectedClient(null)
@@ -185,12 +208,14 @@ export default function PaymentsPage() {
         fetchPaymentsData()
         loadPatientsAndInvoices()
       } else {
-        toast.error(res?.message || 'Failed to record payment')
+        toast.error(res?.error || res?.message || 'Failed to record payment')
       }
     } catch (err) {
       console.error('Add payment error:', err)
-      toast.error('Error saving payment to database')
+      const errMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Error saving payment to database'
+      toast.error(errMsg)
     } finally {
+      isSubmittingRef.current = false
       setSubmitting(false)
     }
   }
@@ -401,7 +426,15 @@ export default function PaymentsPage() {
           </div>
         }
         open={modalOpen} 
-        onCancel={() => { setModalOpen(false); form.resetFields() }} 
+        onCancel={() => { 
+          activeIdempotencyKeyRef.current = null
+          isSubmittingRef.current = false
+          setModalOpen(false)
+          form.resetFields()
+          setSelectedClient(null)
+          setSelectedInvoice(null)
+          setEnteredAmount('')
+        }} 
         footer={null}
         width={640}
         destroyOnHidden
@@ -591,7 +624,15 @@ export default function PaymentsPage() {
           {/* Action buttons */}
           <div className="flex justify-end gap-2 pt-4 border-t border-slate-150 dark:border-slate-800">
             <Button 
-              onClick={() => { setModalOpen(false); form.resetFields() }} 
+              onClick={() => { 
+                activeIdempotencyKeyRef.current = null
+                isSubmittingRef.current = false
+                setModalOpen(false)
+                form.resetFields()
+                setSelectedClient(null)
+                setSelectedInvoice(null)
+                setEnteredAmount('')
+              }} 
               className="rounded-lg h-10 px-5 font-semibold text-xs"
             >
               Cancel

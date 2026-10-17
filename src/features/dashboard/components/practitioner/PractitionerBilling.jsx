@@ -18,10 +18,12 @@ import {
 import { toast } from 'react-hot-toast'
 import dayjs from 'dayjs'
 import { useClinicStore } from '../../../../store/clinicStore'
+import { useNavigate } from 'react-router-dom'
 
 const { Option } = Select
 
 export default function PractitionerBilling({ patientId, clientPatient } = {}) {
+  const navigate = useNavigate()
   const store = useClinicStore()
   const [invoiceForm] = Form.useForm()
   const [editForm] = Form.useForm()
@@ -513,22 +515,13 @@ export default function PractitionerBilling({ patientId, clientPatient } = {}) {
             </Tooltip>
             <Button 
               size="small" 
-              loading={processingId === record.id}
-              onClick={async () => {
-                try {
-                  setProcessingId(record.id)
-                  await store.updateInvoiceStatus(record.id, 'Paid', 0)
-                  toast.success(`Payment processed for ${getInvoiceDisplayNumber(record)}!`)
-                } catch(e) {
-                  toast.error('Failed to process payment.')
-                } finally {
-                  setProcessingId(null)
-                }
+              onClick={() => {
+                navigate('/payments', { state: { preselectInvoice: record } })
               }}
               disabled={isPaid}
               className="rounded-lg font-semibold border-slate-200 text-xs"
             >
-              {isPaid ? 'Paid' : 'Process Payment'}
+              {isPaid ? 'Paid' : 'Record Payment'}
             </Button>
           </div>
         )

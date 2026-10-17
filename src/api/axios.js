@@ -9,8 +9,8 @@ const getRawApiUrl = () => {
     }
     return envUrl
   }
-  // Local Backend URL
-  return 'http://localhost:5001'
+  // Local Backend URL fallback (consistent with server.js default PORT 5000)
+  return 'http://localhost:5000'
 }
 
 const API_BASE_URL = getRawApiUrl()
