@@ -67,8 +67,8 @@ const SPECIFIC_REPORTS = {
 
 // Default table headers for report categories (clean schema, no mock rows)
 const DEFAULT_REPORT_HEADERS = {
-  all_summary: ['Period', 'Appointments Completed', 'New Clients', 'Total Revenue ($)', 'Outstanding Balance ($)'],
-  exec_dashboard: ['Metric Name', 'Current Value', 'Target Value', 'Status', 'Performance vs Target'],
+  all_summary: ['Period', 'Appointments Completed', 'New Clients', 'Cash Collected ($)', 'Billed Amount ($)', 'Outstanding Balance ($)'],
+  exec_dashboard: ['Metric Name', 'Current Value', 'Status'],
   invoices_ledger: ['Invoice #', 'Invoice Date', 'Client Name', 'Practitioner', 'Amount ($)', 'Status'],
   rev_by_prac: ['Practitioner', 'Specialty', 'Completed Appointments', 'Total Revenue ($)', 'Average Fee ($)'],
   outstanding_bal: ['Invoice #', 'Client Name', 'Due Date', 'Total Amount ($)', 'Outstanding Balance ($)', 'Status'],
@@ -252,6 +252,8 @@ export default function ReportsPage() {
       const m = liveReportData.metrics
       return {
         revenue: m.revenue ?? 0,
+        cashCollected: m.cashCollected ?? m.revenue ?? 0,
+        billedAmount: m.billedAmount ?? 0,
         appointments: m.appointments ?? 0,
         newClients: m.newClients ?? 0,
         outstanding: m.outstanding ?? 0,
@@ -266,6 +268,8 @@ export default function ReportsPage() {
     // Clean neutral zeros during initial load (never display unfiltered store fallback amounts)
     return {
       revenue: 0,
+      cashCollected: 0,
+      billedAmount: 0,
       appointments: 0,
       newClients: 0,
       outstanding: 0,
@@ -343,11 +347,20 @@ export default function ReportsPage() {
     },
     {
       id: 'revenue',
-      label: 'Revenue',
+      label: 'Cash Collected',
       icon: <DollarOutlined className="border border-slate-600 rounded-full p-0.5" />,
-      value: `$${Number(metrics.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      sub: metrics.revenue > 0 ? 'Total period revenue' : 'No revenue recorded',
-      tooltip: 'Total revenue collected from paid invoices and payments in this period.',
+      value: `${Number(metrics.cashCollected ?? metrics.revenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      sub: (metrics.cashCollected ?? metrics.revenue ?? 0) > 0 ? 'Actual payment receipts' : '$0.00 cash collected',
+      tooltip: 'Cash Collected: Actual recorded payment receipts received within the selected date range and clinic scope.',
+      cat: 'Financial'
+    },
+    {
+      id: 'billedAmount',
+      label: 'Billed Amount',
+      icon: <FileTextOutlined className="border border-slate-600 rounded-full p-0.5" />,
+      value: `${Number(metrics.billedAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      sub: metrics.billedAmount > 0 ? 'Issued invoices' : 'No invoices billed',
+      tooltip: 'Billed Amount: Issued invoice totals within the selected date range, excluding Draft and Cancelled invoices.',
       cat: 'Financial'
     },
     {
@@ -523,7 +536,7 @@ export default function ReportsPage() {
 
 
       {/* Analytics Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-7 gap-3 xl:gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3 xl:gap-3 mb-6">
         {visibleStats.map(s => (
           <div
             key={s.id}
@@ -558,7 +571,7 @@ export default function ReportsPage() {
 
             {/* Sub-text Caption */}
             <span className="text-[9.5px] text-slate-400 dark:text-slate-500 font-semibold flex items-center gap-1 truncate">
-              {s.id === 'utilisation' || s.id === 'revenue' ? (
+              {s.id === 'utilisation' || s.id === 'revenue' || s.id === 'billedAmount' ? (
                 <>
                   <ArrowUpOutlined style={{ fontSize: '8px', color: '#10B981' }} />
                   <span className="truncate">{s.sub}</span>
@@ -577,7 +590,7 @@ export default function ReportsPage() {
         <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[20px] p-6 shadow-sm space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-[15px] font-bold text-slate-800 dark:text-white m-0">Revenue Trend</h3>
+              <h3 className="text-[15px] font-bold text-slate-800 dark:text-white m-0">Revenue Trend (Cash Collected)</h3>
               <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
                 {dateRange && dateRange[0] && dateRange[1]
                   ? `${dateRange[0].format('D MMM YYYY')} – ${dateRange[1].format('D MMM YYYY')}`
